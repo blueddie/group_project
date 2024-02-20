@@ -41,12 +41,12 @@ print(labels.shape)
 
 labels = labels.reshape(-1, 1)
 ohe = OneHotEncoder()
-y = ohe.fit_transform(labels)
+y = ohe.fit_transform(labels).toarray()
 
 
 
 
-X_train, X_test, y_train, y_test = train_test_split(images, labels, test_size=0.2, random_state=3)
+X_train, X_test, y_train, y_test = train_test_split(images, y, test_size=0.1, random_state=3, stratify=y)
 
 
 
@@ -56,15 +56,15 @@ model.add(MaxPooling2D())
 model.add(Conv2D(97, (4,4), activation='swish'))
 model.add(MaxPooling2D())
 model.add(Conv2D(9, (3,3), activation='swish'))
-model.add(MaxPooling2D())
+model.add(GlobalAveragePooling2D())
 model.add(Flatten())
 model.add(Dense(21,activation='swish'))
 model.add(Dense(1, activation='softmax'))
-
+model.summary()
 
 model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['acc'])
 # es = EarlyStopping(monitor='val_loss', mode='min', patience=50, verbose=2, restore_best_weights=True)
-model.fit(X_train, y_train, epochs=100, batch_size=20, verbose=1)
+model.fit(X_train, y_train, epochs=100, batch_size=20, verbose=1, validation_split=0.2)
 end = time.time()
 # 4. 평가, 훈련
 loss = model.evaluate(X_test, y_test)

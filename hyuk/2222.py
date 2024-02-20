@@ -4,13 +4,13 @@ import numpy as np
 
 # 사전 훈련된 얼굴 인식 및 표정 분석 모델 로드
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-emotion_model = load_model('your_emotion_model.h5')  # 여기서 'your_emotion_model.h5'는 표정 분석 모델의 파일 경로입니다.
+emotion_model = load_model("c:\\_data\\_save\\project_practice.h5")  # 여기서 'your_emotion_model.h5'는 표정 분석 모델의 파일 경로입니다.
 
 # 표정 레이블 정의
 emotion_labels = ['Angry', 'Disgust', 'Fear', 'Happy', 'Sad', 'Surprise', 'Neutral']
 
 # 이미지 불러오기
-img = cv2.imread('path_to_your_image.jpg')
+img = cv2.imread('d:\\project\\111\\Training\\22\\234.jpg')
 gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
 # 이미지에서 얼굴 인식
