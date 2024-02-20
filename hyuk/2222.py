@@ -14,7 +14,7 @@ img = cv2.imread('path_to_your_image.jpg')
 gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
 # 이미지에서 얼굴 인식
-faces = face_cascade.detectMultiScale(gray, 1.3, 5)
+faces = face_cascade.detectMultiScale(gray, 1.3, 5) 
 
 for (x, y, w, h) in faces:
     # 인식된 얼굴 영역 추출 및 크기 조정
