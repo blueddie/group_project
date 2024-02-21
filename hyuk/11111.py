@@ -1,55 +1,38 @@
-import cv2
-import numpy as np
-from cv2 import dnn
-import imutils
+import cv2  # OpenCV 라이브러리 임포트
+import os   # 파일 시스템 관리를 위한 os 모듈 임포트
 
+def extract_frames(video_path, output_folder):
+    """
+    영상 파일에서 프레임을 추출하여 이미지 파일로 저장하는 함수
+    :param video_path: 추출할 영상 파일 경로
+    :param output_folder: 추출된 프레임을 저장할 폴더 경로
+    """
+    # 영상 파일 열기
+    video_capture = cv2.VideoCapture(video_path)
+    # 프레임 카운트 초기화
+    frame_count = 0
 
-# OpenCV의 딥러닝 기반 얼굴 감지 모델과 표정 분석 모델을 로드합니다.
+    # 영상이 열렸는지 확인
+    while video_capture.isOpened():
+        # 프레임 읽기
+        ret, frame = video_capture.read()
+        if not ret:  # ret이 False면 영상이 끝난 것이므로 루프를 종료
+            break
 
-prototxt = 'deploy.prototxt.txt'    
-caffemodel='res10_300x300_ssd_iter_140000.caffemodel'     
-face_model =  cv2.dnn.readNetFromCaffe( prototxt, caffemodel)
+        # 프레임 저장
+        frame_count += 1
+        frame_name = f"frame_{frame_count}.jpg"  # 프레임 파일명 생성
+        frame_path = os.path.join(output_folder, frame_name)  # 프레임 저장 경로 생성
+        cv2.imwrite(frame_path, frame)  # 프레임을 이미지 파일로 저장
 
-# face_model = cv2.dnn.readNetFromCaffe("deploy.prototxt", "res10_300x300_ssd_iter_140000.caffemodel")
-emotion_model = cv2.dnn.readNetFromTensorflow("emotion-ferplus.t7")
+    # 영상 파일 닫기
+    video_capture.release()
+    cv2.destroyAllWindows()
 
-# 표정 분석을 위한 라벨을 정의합니다.
-EMOTIONS = ["Angry", "Happy", "Sad", "Neutral"]
+# 영상 파일 경로 설정
+video_path = 'C:\\group_project_data\\train\\123.mp4'
+# 프레임을 저장할 폴더 설정
+output_folder = 'C:\\group_project_data\\test'
 
-# 이미지 파일 경로를 지정합니다.
-image_path ='d:\\project\\111\\Training\\22\\123.jpeg\\'
-# 이미지를 읽어옵니다.
-image = cv2.imread(image_path)
-
-# 이미지에서 얼굴을 감지합니다.
-blob = cv2.dnn.blobFromImage(cv2.resize(image, (300, 300)), 1.0, (300, 300), (104.0, 177.0, 123.0))
-face_model.setInput(blob)
-detections = face_model.forward()
-
-# 감지된 얼굴 영역에 대해 반복합니다.
-for i in range(0, detections.shape[2]):
-    confidence = detections[0, 0, i, 2]
-
-    # 일정한 신뢰도 이상인 얼굴에 대해서만 처리합니다.
-    if confidence > 0.5:
-        # 얼굴 영역을 추출합니다.
-        box = detections[0, 0, i, 3:7] * np.array([image.shape[1], image.shape[0], image.shape[1], image.shape[0]])
-        (startX, startY, endX, endY) = box.astype("int")
-        face = image[startY:endY, startX:endX]
-
-        # 얼굴 영역에서 표정을 분석합니다.
-        face_blob = cv2.dnn.blobFromImage(face, 1.0, (48, 48), (0, 0, 0), swapRB=True, crop=False)
-        emotion_model.setInput(face_blob)
-        predictions = emotion_model.forward()
-        emotion_index = np.argmax(predictions[0])
-
-        # 결과를 표시합니다.
-        text = EMOTIONS[emotion_index]
-        cv2.putText(image, text, (startX, startY - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 255, 0), 2)
-
-# 결과 이미지를 표시합니다.
-cv2.imshow("Output", image)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
-
-print(cv2.__version__)
+# 프레임 추출 실행
+extract_frames(video_path, output_folder)
