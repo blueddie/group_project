@@ -1,0 +1,47 @@
+1. 
+일반적으로 Image captioning model은 visual encoder와 language model로 구성됩니다.
+
+이미지를 받아 문법적으로, 그리고 의미적으로 타당한 문장을 반환하는 것이 Image captioning입니다.
+
+최종 목표 : input image를 처리해 representation을 생성하고, visual element와 textual elements 사이의 연결을 만들어, 언어의 유창함을 유지한채, 일련의 단어들을 생성하는 것.
+
+최근 Image Captioning 방법론들은 주로 image-to-sequence problem으로 구성됩니다.
+
+    1.  input image를 one(multiple) feature vector로 인코딩
+        visual encoder
+        초기엔 기본적인 CNN 
+
+    2.  이 feature vector로부터 문장을 생성
+        language model
+        초기엔 기본적인 RNN(with global image descriptor)
+
+최근에는, Transformer와 Self Attention이라는 breakthroughs와 single-stream BERT-기반 방법들과 같은 attentive approaches들에
+이르기까지 attentive approaches들로 하여금 모델은 더욱 좋아졌습니다.
+
+
+perceptual(지각적) : focusing on low-level visual attributes
+                    시각적 정보의 저수준 특성에 집중하는 것을 나타냅니다. 즉, 이미지나 비디오에서의 색상, 질감, 모양 등과 같은 기본적인 시각적 특징에 주목하는 것을 의미합니다.
+                    이러한 저수준 특성은 주로 컴퓨터 비전 분야에서 사용되며, 이미지 처리 및 패턴 인식과 같은 작업에 중요합니다.
+
+non-visual(비시각적) : reporting implicit and contextual information
+                    시각적 정보 외에도 암묵적이고 맥락적인 정보를 보고하는 것을 의미합니다. 이는 시각적 정보의 해석에 관련된 것으로, 이미지나 비디오의 묘사, 문맥, 시간적 연속성 등을 포함할 수 있습니다.
+                    예를 들어, 사진 속의 사람들의 감정, 행동, 상황 등을 설명하는 것이 여기에 해당할 수 있습니다.
+
+conceptual(개념적) : describing the actual visual content
+                    실제 시각적 콘텐츠를 설명하는 것을 의미합니다. 즉, 시각적 개체와 그들 간의 관계를 이해하고 높은 수준의 의미를 도출하는 것을 말합니다.
+                    이는 시각적 개체 및 관계의 추론과 해석에 관련되어 있으며, 시각적 정보의 의미론적 이해를 통해 이루어집니다.
+
+(visual entities & relation)
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+2. Visual Encoding
+input image로부터 효율적인 representation을 뽑아내는 것은 이미지 캡셔닝의 첫번째 단계입니다.
+
+non-attentive methods(global CNN features)
+additive attentive methods(using grdis or regions)
+graph-based methods (considering relationships between visual regions)
+self-attentive methods(using region-based, patch-based, image-text early fusion)(based on Transformer)
+
+overview of the image captioning task and taxonomy of the most relevant approaches
+이미지 캡션 작업 개요 및 가장 관련성이 높은 접근법 분류
+
