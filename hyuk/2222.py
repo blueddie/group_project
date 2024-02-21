@@ -1,6 +1,7 @@
 import cv2
 from keras.models import load_model
 import numpy as np
+from transformers import GPT2LMHeadModel, GPT2Tokenizer
 
 # 사전 훈련된 얼굴 인식 및 표정 분석 모델 로드
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
