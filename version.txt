@@ -1,0 +1,5 @@
+tensorflow-gpu                2.9.0
+opencv-python                 4.9.0.80
+numpy                         1.26.3
+pandas                        2.1.4
+xgboost                       2.0.3
