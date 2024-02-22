@@ -9,45 +9,27 @@ import cv2
 # model = YOLO('yolov8n.yaml').load('yolov8n.pt')  # YAML 로 새모델 불러오고 가중치 땡겨오기
 model = YOLO("yolov8n.pt")  # ""안에 모델 가중치 불러오기. n,s,m,l,x 순
 
-result = model.predict('d:/_data/coco/archive/coco2017/train2017/000000000143.jpg', conf = 0.5)  # confidence 0.5이상만 박싱
+result = model.predict('d:/_data/coco/archive/coco2017/train2017/000000000143.jpg', 
+                        conf = 0.5, 
+                        # show=True, 
+                        # save_txt=True, 
+                        max_det = 300, 
+                        # visualize=True,
+                        
+                        )  # confidence 0.5이상만 박싱
 
+print(result[0].shape)
 # folder_path ='d:/_data/coco/archive/coco2017/train2017/'
-df = pd.DataFrame(result)
-# print(df.shape())
-## json
-with open('df.json', 'w') as f:
-    json.dump(result, f, indent=4)
-## pandas
-df.to_json('df.json', indent=4)
-df.to_csv('df.csv', index=False)
 
-# class_names = model.names
-# class_id = result[0][2]
-# class_name = class_names[class_id]
 
-# # 결과 출력
-# print(f"클래스 이름: {class_name}")
-# print(f"클래스 ID: {class_id}")
+class_names = model.names
+class_id = result[0][2]
+class_name = class_names[class_id]
 
-# # 출력 정보 추출
-# for detection in result:
-#     # 객체 정보
-#     x, y, w, h = detection[:4]
-#     class_id = detection[5]
-#     confidence = detection[6]
+# 결과 출력
+print(f"클래스 이름: {class_name}")
+print(f"클래스 ID: {class_id}")
 
-#     # 이미지 정보
-#     image_width, image_height = model.model.image_size
-
-#     # 클래스 이름
-#     classes = model.model.names
-
-#     # 출력
-#     print(f"좌표: ({x}, {y}), ({x+w}, {y+h})")
-#     print(f"클래스 ID: {class_id}")
-#     print(f"신뢰도: {confidence}")
-#     print(f"이미지 크기: ({image_width}, {image_height})")
-#     print(f"클래스 이름: {classes[class_id]}")
 
 
 # #######################################################################################################################
