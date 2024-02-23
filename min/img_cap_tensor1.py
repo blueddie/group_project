@@ -62,7 +62,7 @@ BATCH_SIZE = 64
 BUFFER_SIZE = 1000
 EMBEDDING_DIM = 512
 UNITS = 512
-EPOCHS = 5
+EPOCHS = 50
 
 tokenizer = tf.keras.layers.TextVectorization(
     max_tokens=VOCABULARY_SIZE,
@@ -372,7 +372,7 @@ cross_entropy = tf.keras.losses.SparseCategoricalCrossentropy(
     from_logits=False, reduction="none"
 )
 
-early_stopping = tf.keras.callbacks.EarlyStopping(patience=3, restore_best_weights=True)
+early_stopping = tf.keras.callbacks.EarlyStopping(patience=5, restore_best_weights=True)
 
 caption_model.compile(
     optimizer=tf.keras.optimizers.Adam(),
@@ -449,8 +449,8 @@ print()
 im.show()
 
 # 가중치 저장
-caption_model.save_weights('c:/Study/project/group_project/min/caption_model.h5')
+caption_model.save_weights('c:/Study/project/group_project/min/save/caption_model.h5')
 # pickle.dump(caption_model, open('c:/Study/project/group_project/min/caption_model.dat', 'wb'))    # error
-pickle.dump(caption_model, open('c:/Study/project/group_project/min/caption_model.pkl', 'wb'))
+# pickle.dump(caption_model, open('c:/Study/project/group_project/min/caption_model.pkl', 'wb'))
 
-dump(caption_model, 'c:/Study/project/group_project/min/caption_model.joblib')
+dump(caption_model, 'c:/Study/project/group_project/min/save/caption_model.joblib')
