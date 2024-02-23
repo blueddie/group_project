@@ -6,10 +6,10 @@ from keras.applications import InceptionV3
 from keras.applications.inception_v3 import InceptionV3, preprocess_input
 from keras.models import Model
 from tensorflow.keras.preprocessing import image
-from keras.layers import Input, Flatten, LSTM, Dense, Embedding, Concatenate, TimeDistributed
+from keras.layers import Input, Flatten, LSTM, Dense, Embedding, Concatenate, TimeDistributed, concatenate
 from keras import Sequential   
-
-
+from sklearn.model_selection import train_test_split
+'''
 def video_to_frames(video_path, frames_dir, skip_frames=1):
     """
     영상에서 프레임을 추출하는 함수.
@@ -40,7 +40,7 @@ def video_to_frames(video_path, frames_dir, skip_frames=1):
 video_path = "C:\\_data\\project\\003.비디오 장면 설명문 생성 데이터\\01-1.정식개방데이터\\Training\\01.원천데이터\\TS_드라마_220816\\D3_DR_0816_000001.mp4"
 
 frames_dir = "c:\\_data\\project\\save_images3\\"
-video_to_frames(video_path, frames_dir)
+# video_to_frames(video_path, frames_dir)
 
 
 def extract_features(frames_dir, model):
@@ -65,7 +65,7 @@ model = Model(inputs=inception_model.input, outputs=inception_model.output)
 frame_files = sorted([os.path.join(frames_dir, f) for f in os.listdir(frames_dir) if f.endswith('.jpg')])
 features = np.array([extract_features(frame, model) for frame in frame_files])      
     
-    
+''' 
 json_path = 'C:\\_data\\project\\003.비디오 장면 설명문 생성 데이터\\01-1.정식개방데이터\\Training\\02.라벨링데이터\\D3_DR_0816_000001.json'  
     
     
@@ -73,42 +73,92 @@ def load_json_data(json_path):
     with open(json_path, 'r', encoding='utf-8-sig') as file:
         data = json.load(file)
     return data
+data = load_json_data(json_path)
+sentences_en_list = [sentence['sentences_en'] for sentence in data['sentences']]
     
-    
-label_data = load_json_data(json_path)
 
-# print(features[0])
-print(features.shape)
+label_data = sentences_en_list
+
+# print(features[0:100])
+# print(features.shape)
 # (1800, 1, 8, 8, 2048)
-
-# features_np = np.array(features)
-label_data_np = np.array(label_data)
-
-feature_shape = (1, 8, 8, 2048)
+# print(label_data.shape)
 
 
-rnn_model = Sequential([
-    # TimeDistributed 레이어는 각 시간 단계에서 동일한 Dense 변환을 적용합니다.
-    TimeDistributed(Flatten(), input_shape=feature_shape),
-    LSTM(512, return_sequences=True),
-    LSTM(512),
-    Dense(256, activation='relu'),
-    Dense(1, activation='relu')  # num_classes는 최종 출력 클래스의 수입니다.
-])
+print(label_data)
+from keras.preprocessing.text import Tokenizer
+import pandas as pd
+from keras.utils import pad_sequences
 
-rnn_model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
-# 모델 학습
-rnn_model.fit(features, label_data_np, epochs=10, batch_size=32, validation_split=0.2)
+token = Tokenizer()
+token.fit_on_texts(label_data)
 
-# 모델 평가
-results = rnn_model.evaluate(features, label_data_np)
-print("loss : " , results[0])
-print(" acc : " , results[1])
-    
-    
-    
-    
-    
-    
-    
+print(token)
+
+X = token.texts_to_sequences(label_data)
+
+X_padded = pad_sequences(X, padding='pre',maxlen=13)
+
+
+print(X_padded)
+
+# X = np.array(X)
+# X = X.reshape(-1)
+# X3 = pd.get_dummies(X, dtype=int) 
+                                    
+# print(X3)
+
+
+# X_train, X_test, y_train, y_test = train_test_split(features, label_data, random_state=3)
+
+
+'''
+# 2-1. 모델구성1
+i1 = Input(shape=(1800, 1, 8, 8, 2048))
+d1 = TimeDistributed(Flatten(), name= 'bit1')(i1)
+d2 = LSTM(19, activation='relu', name= 'bit2')(d1)
+d3 = LSTM(97, activation='relu', name= 'bit3')(d2)
+o1 = LSTM(9, activation='relu', name= 'bit4')(d3)
+
+
+# 2-2. 모델구성 2
+i2 = Input(shape=())
+d11 = TimeDistributed(19, activation='relu', name= 'bit11')(i2)
+d12 = LSTM(97, activation='relu', name= 'bit12')(d11)
+d13 = LSTM(9, activation='relu', name= 'bit13')(d12)
+o2 = LSTM(21, activation='relu', name= 'bit14')(d13)
+
+
+
+m1 = concatenate([o1, o2], name = 'mg1')
+m2 = Dense(7, name='mg2')(m1)
+
+
+final_layer = Dense(3, activation='relu')(m2)
+
+fo = Dense(1,activation='relu', name= 'last')(final_layer)
+model = Model(inputs=i1, outputs=fo)
+
+model.summary()
+
+
+model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['acc'])
+
+model.fit(features, label_data, epochs=10, batch_size=30, )
+results = model.evaluate(features, label_data)
+# print(results[0])
+# print(results[1])
+print(results)
+
+'''
+
+
+
+
+
+
+
+
+
+

@@ -1,1 +1,7 @@
+datasets/
+runs/
 yolov8s.pt
+yolov8n-cls.pt
+yolov8n.pt
+featuers.npy
+yolov5su.pt
