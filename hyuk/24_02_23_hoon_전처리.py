@@ -4,7 +4,7 @@ import torch
 from PIL import Image
 
 
-model_yolo = torch.hub.load('ultralytics/yolov8', 'yolov8s', pretrained=True)
+model_yolo = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
 
 print(f"모델 로드 성공")
 
@@ -22,6 +22,10 @@ def load_captions(captions_file):
     with open(captions_file, 'r') as f:
         captions_data = json.load(f)
     return captions_data
+
+
+
+
 
 # 이미지 파일명을 키로 하고 라벨 및 캡션을 값으로 가지는 딕셔너리 생성
 def create_data(images_dir, captions_data):
@@ -45,9 +49,15 @@ images_dir = 'C:\\_data\\project\\coco\\coco2017\\train2017\\'
 captions_file = 'C:\\_data\\project\\coco\\coco2017\\annotations\\captions_train2017.json'  # captions_train2017.json 파일의 경로
 captions_data = load_captions(captions_file)
 
-keys = captions_data.keys()
+# dict_keys 객체를 리스트로 변환
+keys = list(captions_data.keys())
 print(keys)
-print(captions_data[keys[0]])
+
+# 이제 첫 번째 키를 사용하여 첫 번째 아이템에 접근할 수 있음
+
+
+
+print(captions_data[keys[3]])
 # print(f"json 로드 성공")
 # data = create_data(images_dir, captions_data)
 
