@@ -1,0 +1,15 @@
+catboost_info/
+datasets/
+images/
+.jpg
+.md
+.cache
+.yaml
+*.tfevents.*
+runs/
+yolov8n.pt
+yolov8x.pt
+df.json
+vocab_coco.file
+tmp.jpg
+save/
