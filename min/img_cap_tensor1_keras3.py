@@ -1,5 +1,7 @@
-import tensorflow as tf
 import os
+# os.environ["KERAS_BACKEND"] = "tensorflow"
+os.environ["TF_USE_LEGACY_KERAS"] = "1"
+import tensorflow as tf
 import json
 import pandas as pd
 import re
