@@ -61,50 +61,51 @@ def extract_features(frames_dir, model):
 inception_model = InceptionV3(weights='imagenet', include_top=False)
 model = Model(inputs=inception_model.input, outputs=inception_model.output)
 
-# 프레임에서 특성 추출
-frame_files = sorted([os.path.join(frames_dir, f) for f in os.listdir(frames_dir) if f.endswith('.jpg')])
-features = np.array([extract_features(frame, model) for frame in frame_files])      
+model.summary()
+# # 프레임에서 특성 추출
+# frame_files = sorted([os.path.join(frames_dir, f) for f in os.listdir(frames_dir) if f.endswith('.jpg')])
+# features = np.array([extract_features(frame, model) for frame in frame_files])      
     
     
-json_path = 'C:\\_data\\project\\003.비디오 장면 설명문 생성 데이터\\01-1.정식개방데이터\\Training\\02.라벨링데이터\\D3_DR_0816_000001.json'  
+# json_path = 'C:\\_data\\project\\003.비디오 장면 설명문 생성 데이터\\01-1.정식개방데이터\\Training\\02.라벨링데이터\\D3_DR_0816_000001.json'  
     
     
-def load_json_data(json_path):
-    with open(json_path, 'r', encoding='utf-8-sig') as file:
-        data = json.load(file)
-    return data
+# def load_json_data(json_path):
+#     with open(json_path, 'r', encoding='utf-8-sig') as file:
+#         data = json.load(file)
+#     return data
     
     
-label_data = load_json_data(json_path)
+# label_data = load_json_data(json_path)
 
-# print(features[0])
-print(features.shape)
-# (1800, 1, 8, 8, 2048)
+# # print(features[0])
+# print(features.shape)
+# # (1800, 1, 8, 8, 2048)
 
-# features_np = np.array(features)
-label_data_np = np.array(label_data)
+# # features_np = np.array(features)
+# label_data_np = np.array(label_data)
 
-feature_shape = (1, 8, 8, 2048)
+# feature_shape = (1, 8, 8, 2048)
 
 
-rnn_model = Sequential([
-    # TimeDistributed 레이어는 각 시간 단계에서 동일한 Dense 변환을 적용합니다.
-    TimeDistributed(Flatten(), input_shape=feature_shape),
-    LSTM(512, return_sequences=True),
-    LSTM(512),
-    Dense(256, activation='relu'),
-    Dense(1, activation='relu')  # num_classes는 최종 출력 클래스의 수입니다.
-])
+# rnn_model = Sequential([
+#     # TimeDistributed 레이어는 각 시간 단계에서 동일한 Dense 변환을 적용합니다.
+#     TimeDistributed(Flatten(), input_shape=feature_shape),
+#     LSTM(512, return_sequences=True),
+#     LSTM(512),
+#     Dense(256, activation='relu'),
+#     Dense(1, activation='relu')  # num_classes는 최종 출력 클래스의 수입니다.
+# ])
 
-rnn_model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+# rnn_model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
-# 모델 학습
-rnn_model.fit(features, label_data_np, epochs=10, batch_size=32, validation_split=0.2)
+# # 모델 학습
+# rnn_model.fit(features, label_data_np, epochs=10, batch_size=32, validation_split=0.2)
 
-# 모델 평가
-results = rnn_model.evaluate(features, label_data_np)
-print("loss : " , results[0])
-print(" acc : " , results[1])
+# # 모델 평가
+# results = rnn_model.evaluate(features, label_data_np)
+# print("loss : " , results[0])
+# print(" acc : " , results[1])
     
     
     
