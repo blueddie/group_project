@@ -5,7 +5,7 @@ import cv2
 model = YOLO('yolov8s.pt')
 
 # 동영상 파일 경로
-video_path =  "C:\\group_project_data\\coco2017\\train2017\\train\\000000000009.jpg"
+video_path =  "C:\\group_project_data\\coco2017\\train2017\\train\\000000000078.jpg"
 cap = cv2.VideoCapture(video_path)
 
 paused = False  # 일시 정지 상태를 추적하는 변수
