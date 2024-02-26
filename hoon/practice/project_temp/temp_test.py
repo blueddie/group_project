@@ -138,7 +138,7 @@ def load_data(img_path, caption):
     img = tf.io.read_file(img_path)                                         # 이미지 파일을 바이트 문자열로 읽어옵니다.
     img = tf.io.decode_jpeg(img, channels=3)                                # 이미지를 RGB 채널의 텐서로 디코딩
     img = tf.keras.layers.Resizing(299, 299)(img)                           # 이미지를 299x299 픽셀 크기로 조정
-    img = tf.keras.applications.inception_v3.preprocess_input(img)          # InceptionV3 모델에 입력으로 들어가기 전에 전처리를 수행
+    img = tf.keras.applications.inception_v3.preprocess_input(img)          # InceptionV3 모델에 입력으로 들어가기 전에 전처리를 수행 ( InceptionV3는 일반적으로 각 채널을 [-1, 1]범위로 정규화)  float32 
     caption = tokenizer(caption)                                            # 캡션을 토크나이징하여 벡터화
     return img, caption                                                     # 처리된 이미지와 벡터화된 캡션을 반환
 
