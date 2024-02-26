@@ -8,7 +8,7 @@ model_name = "gpt2"
 tokenizer = GPT2Tokenizer.from_pretrained(model_name)
 model = TFGPT2LMHeadModel.from_pretrained(model_name, pad_token_id=tokenizer.eos_token_id)
 
-input_text = "age: 20, gender: female, emotions: sad. "
+input_text = "'clock', 'car', 'stop sign', 'truck' "
 input_ids = tokenizer.encode(input_text, return_tensors='tf')
 
 max_length = 80
