@@ -17,42 +17,37 @@ from math import sqrt
 from PIL import Image
 from tqdm.auto import tqdm
 import pickle
-
+import time
 # 기본 파일 위치
 BASE_PATH = 'd:/_data/coco/archive/coco2017'                                # base 경로 설정
 
+st = time.time()
 with open(f'{BASE_PATH}/annotations/captions_train2017.json', 'r') as f:    # train.json 파일 열기. 열어서 변수 f에 할당
     data = json.load(f)                                                     # JSON 파일을 읽어서 파이썬 객체로 로드합니다. 
     data = data['annotations']                                              # 로드된 데이터에서 'annotations' 키의 값을 가져옴. 가져온 value를 변수 data에 할당
+
+with open(f'{BASE_PATH}/annotations/captions_val2017.json', 'r') as f:      # val.json 파일 열기. 열어서 변수 f에 할당
+    data2 = json.load(f)                                                    # JSON 파일을 읽어서 파이썬 객체로 로드합니다. 
+    data2 = data2['annotations']  
 
 img_cap_pairs = []                                                          # 이미지 이름과 caption을 매칭하여 담을 리스트 생성
 for sample in data:                                                         # 데이터에서 각 샘플에 대해 반복합니다.
     img_name = '%012d.jpg' % sample['image_id']                             # 현재 샘플의 이미지 ID를 12자리 숫자로 포맷하여 이미지 파일 이름을 생성합니다.
     img_cap_pairs.append([img_name, sample['caption']])                     # 이미지 이름과 해당 이미지의 캡션을 쌍으로 묶어 리스트에 추가합니다
-    # print(img_name)    
-    # print(sample)
-    # print(img_cap_pairs)
-# print(img_cap_pairs)
+
+for sample in data2:                                                        
+    img_name = '%012d.jpg' % sample['image_id']                             
+    img_cap_pairs.append([img_name, sample['caption']])  
 
 captions = pd.DataFrame(img_cap_pairs, columns = ['image', 'caption'])      # 이미지와 해당 이미지의 캡션 쌍을 사용하여 Pandas의 DataFrame을 생성합니다.
 captions['image'] = captions['image'].apply(                                # 'image' 열의 각 요소에 대해 함수를 적용하여 수정합니다.
     lambda x: f'{BASE_PATH}/train2017/{x}'                                  # 이미지 파일의 경로를 수정하여 열에 적용합니다.
     # lambda x: f'{x}'                                  
 )
-# captions = captions.sample(70000)                                           # captions DataFrame에서 무작위로 70000개의 샘플을 추출하여 샘플링합니다.
-# captions = captions.reset_index(drop=True)                                  # captions DataFrame의 인덱스를 재설정하고 이전 인덱스를 삭제합니다.
-# print(captions.head())
-# captions.to_csv(BASE_PATH + 'train.csv', index=False)
-# print(captions.shape)
-# print(captions['image'].head(5))
+print(captions.shape)                                                       # (616767, 2) 정상적으로 데이터프레임 만들었음 확인.
+et = time.time()
+print(f"걸린 시간 {et - st}")
 
-# image_counts = captions['image'].value_counts()
-# image_names_over_5 = []
-# for image_name, count in image_counts.items():
-#     if count > 5:
-#         image_names_over_5.append(image_name)
-        
-# print("Image names with count over 5:", image_names_over_5)
 def preprocess(text):
     text = text.lower()                                                     # 텍스트를 소문자로 변환합니다.
     text = re.sub(r'[^\w\s]', '', text)                                     # 특수 문자를 제거합니다.
@@ -64,9 +59,9 @@ def preprocess(text):
 captions['caption'] = captions['caption'].apply(preprocess)                 # captions 데이터프레임의 'caption' 열에 있는 모든 행에 preprocess 함수를 적용합니다.
 # print(captions.head())
 
-random_row = captions.sample(1).iloc[0]                                     # 임의의 하나의 행을 random_row 변수에 할당                                                
+random_row = captions.sample(1).iloc[0]                                    # 임의의 하나의 행을 random_row 변수에 할당                                                
 im = Image.open(random_row.image)                                           # random_row 이미지에 접근
-# im.show()                                                                 # 이미지 출력
+# im.show()                                                                  # 이미지 출력
 # print(f"출력 이미지 정보 : {random_row}")     
 # image      d:/_data/coco/archive/coco2017/train2017/00000...
 # caption         [start] a man with a ball of some sort [end]     # 
@@ -88,7 +83,8 @@ tokenizer = tf.keras.layers.TextVectorization(                              # "�
 tokenizer.adapt(captions['caption'])
 # print(captions['caption'])
 
-print(tokenizer.vocabulary_size())                                          # 나누지 않은 train 전체    29080
+print(tokenizer.vocabulary_size())                                          # 나누지 않은 train 전체    29630
+
 
 # pickle.dump(tokenizer.get_vocabulary(), open(                             # 집합(vocabulary)을 파일로 저장
     # BASE_PATH + 'vocab_coco.file', 'wb'))  
@@ -122,10 +118,6 @@ for imgt in img_name_train_keys:                                            #  �
     train_imgs.extend([imgt] * capt_len)                                    # 현재 이미지를 훈련 데이터셋에 추가합니다. 캡션의 개수만큼 반복해서 추가
     train_captions.extend(img_to_cap_vector[imgt])                          # 해당 이미지에 대한 모든 캡션을 훈련 데이터셋에 추가
 
-# print(train_imgs[:5])                                                       
-# print(train_captions[:5])                                                   
-
-
 val_imgs = []
 val_captions = []
 for imgv in img_name_val_keys:
@@ -145,22 +137,10 @@ def load_data(img_path, caption):
 train_dataset = tf.data.Dataset.from_tensor_slices(                         # 함수를 사용하여 데이터셋을 생성하고, 
     (train_imgs, train_captions))                                           # 각 이미지와 해당하는 캡션을 (train_imgs, train_captions) 튜플 형태로 저장합니다.
 
-# for img, caption in train_dataset.take(5):
-#     print("Image:", img)
-#     print("Caption:", caption)
-#     print()
-    
 train_dataset = train_dataset.map(
     load_data                                                               # 함수를 데이터셋의 각 요소에 적용합니다.
     , num_parallel_calls=tf.data.AUTOTUNE                                   # 데이터 전처리를 병렬로 처리
     ).shuffle(BUFFER_SIZE).batch(BATCH_SIZE)                                # 데이터셋을 셔플링, 이터셋을 배치로 만듭니다.
-
-# for img, caption in train_dataset.take(1):
-#     print(img[:5])
-#     print(idx2word(caption[:5]))
-    
-
-
 
 val_dataset = tf.data.Dataset.from_tensor_slices(
     (val_imgs, val_captions))
@@ -168,6 +148,7 @@ val_dataset = tf.data.Dataset.from_tensor_slices(
 val_dataset = val_dataset.map(
     load_data, num_parallel_calls=tf.data.AUTOTUNE
     ).shuffle(BUFFER_SIZE).batch(BATCH_SIZE)
+
 
 image_augmentation = tf.keras.Sequential(               
     [   tf.keras.layers.RandomFlip("horizontal"),                           # 수평 방향으로 이미지를 무작위로 뒤집습니다.
@@ -181,8 +162,9 @@ def CNN_Encoder():
                                                                             # 주로 분류나 회귀와 같은 작업에서 사용, 입력 데이터의 특징을 추상화하고 이를 기반으로 예측을 수행, 
                                                                             # 이 레이어를 제거하는 것은 모델의 특징 추출 능력을 강화하고, 특히 이미지 캡션 생성과 같은 작업에서는 시각적 특징을 더 잘 추출
         , weights='imagenet'                                                # # ImageNet 데이터셋으로 사전 훈련된 가중치를 사용합니다.
+        
     )
-
+    inception_v3.trainable = False
     output = inception_v3.output                                            # 모델의 출력을 가져옵니다.
     output = tf.keras.layers.Reshape(                                       # 출력을 재구성하여 3D 텐서를 2D 텐서로 변환
         (-1, output.shape[-1]))(output)
@@ -415,11 +397,11 @@ cross_entropy = tf.keras.losses.SparseCategoricalCrossentropy(
     from_logits=False, reduction="none"
 )
 
-early_stopping = tf.keras.callbacks.EarlyStopping(patience=5, restore_best_weights=True, monitor = 'val_acc')
+early_stopping = tf.keras.callbacks.EarlyStopping(patience=5, restore_best_weights=True, monitor = 'val_accuracy')
 
 caption_model.compile(
-    optimizer='adam',
-    loss=cross_entropy
+    optimizer=tf.keras.optimizers.Adam()
+    , loss=cross_entropy
 )
 
 history = caption_model.fit(
@@ -492,8 +474,5 @@ print()
 im.show()
 
 # 가중치 저장
-# caption_model.save_weights('c:/Study/project/group_project/min/save/caption_model.h5')
-# # pickle.dump(caption_model, open('c:/Study/project/group_project/min/caption_model.dat', 'wb'))    # error
-# # pickle.dump(caption_model, open('c:/Study/project/group_project/min/caption_model.pkl', 'wb'))
+# caption_model.save_weights('D:\\_data\\coco\\archive\\imageCaptioning_coco.h5')
 
-# dump(caption_model, 'c:/Study/project/group_project/min/save/caption_model.joblib')
