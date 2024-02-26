@@ -1,6 +1,7 @@
 import cv2
 from keras.models import load_model
 import numpy as np
+from transformers import GPT2LMHeadModel, GPT2Tokenizer
 
 # 사전 훈련된 얼굴 인식 및 표정 분석 모델 로드
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
@@ -14,7 +15,7 @@ img = cv2.imread('path_to_your_image.jpg')
 gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
 # 이미지에서 얼굴 인식
-faces = face_cascade.detectMultiScale(gray, 1.3, 5)
+faces = face_cascade.detectMultiScale(gray, 1.3, 5) 
 
 for (x, y, w, h) in faces:
     # 인식된 얼굴 영역 추출 및 크기 조정

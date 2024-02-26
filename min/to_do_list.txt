@@ -1,0 +1,2 @@
+1. yolo의 results 에서 물체의 feature값, class_name, class_id 찾기
+2. 쓸만한 Bert의 상위호환 트랜스포머를 찾고, input값 알아내기
