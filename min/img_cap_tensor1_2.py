@@ -35,7 +35,7 @@ captions = pd.DataFrame(img_cap_pairs, columns = ['image', 'caption'])
 captions['image'] = captions['image'].apply(
     lambda x: f'{BASE_PATH}/train2017/{x}'
 )
-captions = captions.sample(70000)
+captions = captions.sample(118287)
 captions = captions.reset_index(drop=True)
 # print(captions.head())
 
@@ -49,13 +49,32 @@ def preprocess(text):
 
 captions['caption'] = captions['caption'].apply(preprocess)
 # print(captions.head())
-
-random_row = captions.sample(1).iloc[0]
-# print(random_row.caption)  # 이게 왜 됨?
+# random_row = captions.sample(1).iloc[0]
+# print(random_row.caption) 
 # print()
 # im = Image.open(random_row.image)
 # im.show()
+        ########### validation
+with open(f'{BASE_PATH}/annotations/captions_val2017.json', 'r') as f:
+    val_data = json.load(f)
+    val_data = val_data['annotations']
 
+val_img_cap_pairs = []
+
+for val_sample in val_data:
+    img_name = '%012d.jpg' % val_sample['image_id']
+    val_img_cap_pairs.append([img_name, val_sample['caption']])
+
+val_captions = pd.DataFrame(val_img_cap_pairs, columns = ['image', 'caption'])
+val_captions['image'] = val_captions['image'].apply(
+    lambda x: f'{BASE_PATH}/val2017/{x}'
+)
+val_captions = val_captions.sample(5000)
+val_captions = val_captions.reset_index(drop=True)
+
+val_captions['caption'] = val_captions['caption'].apply(preprocess)
+# random_val_row = val_captions.sample(1).iloc[0]
+# =======================================================================================
 MAX_LENGTH = 40
 VOCABULARY_SIZE = 15000
 BATCH_SIZE = 64
@@ -70,7 +89,6 @@ tokenizer = tf.keras.layers.TextVectorization(
     output_sequence_length=MAX_LENGTH
 )
 tokenizer.adapt(captions['caption'])
-# print(tokenizer.vocabulary_size())  # 단어 대충 12000개 좀 안됨. 누를때마다 바뀜 아마 random_row 때문인거같음
 
 pickle.dump(tokenizer.get_vocabulary(), open('vocab_coco.file', 'wb'))
 
@@ -87,12 +105,19 @@ img_to_cap_vector = collections.defaultdict(list)
 for img, cap in zip(captions['image'], captions['caption']):
     img_to_cap_vector[img].append(cap)
 
-img_keys = list(img_to_cap_vector.keys())
-random.shuffle(img_keys)
+img_name_train_keys = list(img_to_cap_vector.keys())
+random.shuffle(img_name_train_keys)
 
-slice_index = int(len(img_keys)*0.8)
-img_name_train_keys, img_name_val_keys = (img_keys[:slice_index], 
-                                          img_keys[slice_index:])
+val_img_to_cap_vector = collections.defaultdict(list)
+for img, cap in zip(val_captions['image'], val_captions['caption']):
+    val_img_to_cap_vector[img].append(cap)
+
+img_name_val_keys = list(val_img_to_cap_vector.keys())
+random.shuffle(img_name_val_keys)
+
+# slice_index = int(len(img_keys)*0.8)
+# img_name_train_keys, img_name_val_keys = (img_keys[:slice_index], 
+#                                           img_keys[slice_index:])
 
 train_imgs = []
 train_captions = []
@@ -107,7 +132,7 @@ for imgv in img_name_val_keys:
     capv_len = len(img_to_cap_vector[imgv])
     val_imgs.extend([imgv] * capv_len)
     val_captions.extend(img_to_cap_vector[imgv])
-len(train_imgs), len(train_captions), len(val_imgs), len(val_captions)
+print(len(train_imgs), len(train_captions), len(val_imgs), len(val_captions))
 
 def load_data(img_path, caption):
     img = tf.io.read_file(img_path)
@@ -450,7 +475,7 @@ im.show()
 
 # 가중치 저장
 caption_model.save_weights('c:/Study/project/group_project/min/save/caption_model.h5')
-# pickle.dump(caption_model, open('c:/Study/project/group_project/min/caption_model.dat', 'wb'))    # error
+# pickle.dump(caption_model, open('c:/Study/project/group_project/min/caption_model.dat', 'wb'))
 # pickle.dump(caption_model, open('c:/Study/project/group_project/min/caption_model.pkl', 'wb'))
 
-dump(caption_model, 'c:/Study/project/group_project/min/save/caption_model.joblib')
+# dump(caption_model, 'c:/Study/project/group_project/min/save/caption_model.joblib')
