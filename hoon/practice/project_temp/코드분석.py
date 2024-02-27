@@ -73,11 +73,11 @@ im = Image.open(random_row.image)                                           # ra
 
 MAX_LENGTH = 40
 VOCABULARY_SIZE = 40000
-BATCH_SIZE = 256
+BATCH_SIZE = 64
 BUFFER_SIZE = 1000
 EMBEDDING_DIM = 512
 UNITS = 512
-EPOCHS = 2
+EPOCHS = 1
 
 tokenizer = tf.keras.layers.TextVectorization(                              # "토큰(token)"은 텍스트를 작은 단위로 나누는 과정에서의 기본 단위를 의미.
     max_tokens=VOCABULARY_SIZE,                                             # max_tokens: 단어 집합의 크기를 결정. 즉, 텍스트에서 가장 빈도가 높은 상위 n개의 단어만을 사용하여 벡터화
@@ -190,33 +190,35 @@ def CNN_Encoder():
     cnn_model = tf.keras.models.Model(inception_v3.input, output)           # 모델을 입력과 출력을 지정하여 정의합니다.
     return cnn_model                                                        # 모델 리턴
 
-class TransformerEncoderLayer(tf.keras.layers.Layer):
+class TransformerEncoderLayer(tf.keras.layers.Layer):                       # 트랜스포머 모델에서 인코더는 입력 시퀀스의 특성을 추출하고, 입력 시퀀스 내의 각 요소들 간의 상호작용을 모델링하는 역할
 
-    def __init__(self, embed_dim, num_heads):
-        super().__init__()
-        self.layer_norm_1 = tf.keras.layers.LayerNormalization()
-        self.layer_norm_2 = tf.keras.layers.LayerNormalization()
-        self.attention = tf.keras.layers.MultiHeadAttention(
+    def __init__(self, embed_dim, num_heads):                               # __init__은 파이썬 클래스의 생성자 메서드, embed_dim: 임베딩 차원의 크기, num_heads: 멀티 헤드 어텐션에서 사용되는 어텐션 헤드의 수
+        super().__init__()                                                  # 
+        self.layer_norm_1 = tf.keras.layers.LayerNormalization()            # LayerNormalization을 사용하여 입력 데이터의 각 차원을 정규화하는 레이어를 초기화
+        self.layer_norm_2 = tf.keras.layers.LayerNormalization()            
+        self.attention = tf.keras.layers.MultiHeadAttention(                # MultiHeadAttention 레이어를 초기화하여 입력에 대한 멀티 헤드 어텐션 메커니즘을 적용
             num_heads=num_heads, key_dim=embed_dim)
-        self.dense = tf.keras.layers.Dense(embed_dim, activation="relu")
+        self.dense = tf.keras.layers.Dense(embed_dim, activation="relu")    # Dense 레이어를 초기화하여 입력에 선형 변환을 적용하고 활성화 함수로 ReLU를 사용하여 비선형성을 추가
     
 
-    def call(self, x, training):
-        x = self.layer_norm_1(x)
-        x = self.dense(x)
+    def call(self, x, training):                                            # 
+        x = self.layer_norm_1(x)                                            # 입력 데이터의 각 차원을 정규화합니다.
+        x = self.dense(x)                                                   # Dense 레이어를 통해 입력에 선형 변환을 적용합니다.
 
-        attn_output = self.attention(
-            query=x,
-            value=x,
-            key=x,
-            attention_mask=None,
-            training=training
+        attn_output = self.attention(                                       # MultiHeadAttention을 사용하여 셀프 어텐션을 수행합니다.
+            query=x,                                                        # 물어보는 주체. 유사한 다른 단어를 찾을 때 사용되는 (질의) 벡터
+            value=x,                                                        # 딕셔너리 형태로 저장된다. value는 해당 단어에 대한 구체적 정보를 저장하는 역할
+            key=x,                                                          # 쿼리와의 관계를 계산할 단어들. key는 단어의 id 역할?   
+                                                                            # "I am a teacher" 라는 문장에서 I 가 다른 단어와 어떤 연관이 있는지 알아보기 위한 self attention을 수행할 때 :
+                                                                            # Query : I 에 대한 벡터 Key : am a teacher 각각의 단어 
+            attention_mask=None,                                            # 어텐션 마스크를 지정하지 않음을 의미. 어텐션 마스크는 어텐션 계산에 사용되는 가중치를 조절하기 위해 사용됩니다.
+            training=training                                               # 훈련 중인지 아닌지를 나타내는 불리언 값입니다. 이것은 모델이 훈련 중인지 추론 중인지에 따라 다르게 작동하는 레이어(예: 드롭아웃)가 있을 때 사용
         )
 
-        x = self.layer_norm_2(x + attn_output)
+        x = self.layer_norm_2(x + attn_output)                              # 
         return x
 
-''' 
+
 class Embeddings(tf.keras.layers.Layer):
 
     def __init__(self, vocab_size, embed_dim, max_len):
@@ -478,21 +480,20 @@ print('Predicted Caption:', pred_caption)
 print()
 Image.open(img_path)
 
-img_url = "https://images.squarespace-cdn.com/content/v1/5e0e65adcd39ed279a0402fd/1627422658456-7QKPXTNQ34W2OMBTESCJ/1.jpg?format=2500w"
+# img_url = "https://images.squarespace-cdn.com/content/v1/5e0e65adcd39ed279a0402fd/1627422658456-7QKPXTNQ34W2OMBTESCJ/1.jpg?format=2500w"
 
-im = Image.open(requests.get(img_url, stream=True).raw)
-im = im.convert('RGB')
-im.save('tmp.jpg')
+# im = Image.open(requests.get(img_url, stream=True).raw)
+# im = im.convert('RGB')
+# im.save('tmp.jpg')
 
-pred_caption = generate_caption('tmp.jpg', add_noise=False)
+pred_caption = generate_caption('D:/_data/coco/archive/test/test.jpg', add_noise=False)
 print('Predicted Caption:', pred_caption)
 print()
 im.show()
 
 # 가중치 저장
-caption_model.save_weights('c:/Study/project/group_project/min/save/caption_model.h5')
-# pickle.dump(caption_model, open('c:/Study/project/group_project/min/caption_model.dat', 'wb'))    # error
-# pickle.dump(caption_model, open('c:/Study/project/group_project/min/caption_model.pkl', 'wb'))
+# caption_model.save_weights('c:/Study/project/group_project/min/save/caption_model.h5')
+# # pickle.dump(caption_model, open('c:/Study/project/group_project/min/caption_model.dat', 'wb'))    # error
+# # pickle.dump(caption_model, open('c:/Study/project/group_project/min/caption_model.pkl', 'wb'))
 
-dump(caption_model, 'c:/Study/project/group_project/min/save/caption_model.joblib')
-'''
+# dump(caption_model, 'c:/Study/project/group_project/min/save/caption_model.joblib')
