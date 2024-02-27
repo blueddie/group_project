@@ -235,10 +235,10 @@ class Embeddings(tf.keras.layers.Layer):    # Transformer 모델에서 임베딩
 
 class TransformerDecoderLayer(tf.keras.layers.Layer):
 
-    def __init__(self, embed_dim, units, num_heads):
+    def __init__(self, embed_dim, units, num_heads):            # units: 피드포워드 신경망(FFN)의 유닛(뉴런) 수.
         super().__init__()
-        self.embedding = Embeddings(
-            tokenizer.vocabulary_size(), embed_dim, MAX_LENGTH)
+        self.embedding = Embeddings(                        # 입력 토큰 ID를 고정된 크기의 벡터로 변환하는 임베딩 레이어를 생성, MAX_LENGTH는 입력 시퀀스의 최대 길이를 의미
+            tokenizer.vocabulary_size(), embed_dim, MAX_LENGTH)     # tokenizer.vocabulary_size()는 토큰화에 사용된 어휘의 크기(어휘 사전의 크기), embed_dim은 임베딩 벡터의 차원
 
         self.attention_1 = tf.keras.layers.MultiHeadAttention(
             num_heads=num_heads, key_dim=embed_dim, dropout=0.1
