@@ -240,8 +240,8 @@ class TransformerDecoderLayer(tf.keras.layers.Layer):
         self.embedding = Embeddings(                        # 입력 토큰 ID를 고정된 크기의 벡터로 변환하는 임베딩 레이어를 생성, MAX_LENGTH는 입력 시퀀스의 최대 길이를 의미
             tokenizer.vocabulary_size(), embed_dim, MAX_LENGTH)     # tokenizer.vocabulary_size()는 토큰화에 사용된 어휘의 크기(어휘 사전의 크기), embed_dim은 임베딩 벡터의 차원
 
-        self.attention_1 = tf.keras.layers.MultiHeadAttention(
-            num_heads=num_heads, key_dim=embed_dim, dropout=0.1
+        self.attention_1 = tf.keras.layers.MultiHeadAttention(      
+            num_heads=num_heads, key_dim=embed_dim, dropout=0.1         # dropout은 어텐션 스코어를 계산할 때 사용되는 드롭아웃 비율
         )
         self.attention_2 = tf.keras.layers.MultiHeadAttention(
             num_heads=num_heads, key_dim=embed_dim, dropout=0.1
@@ -251,69 +251,116 @@ class TransformerDecoderLayer(tf.keras.layers.Layer):
         self.layernorm_2 = tf.keras.layers.LayerNormalization()
         self.layernorm_3 = tf.keras.layers.LayerNormalization()
 
-        self.ffn_layer_1 = tf.keras.layers.Dense(units, activation="relu")
-        self.ffn_layer_2 = tf.keras.layers.Dense(embed_dim)
+        self.ffn_layer_1 = tf.keras.layers.Dense(units, activation="relu")   # 피드포워드 신경망(FFN)을 정의. 첫 번째 Dense 레이어는 units 개의 유닛을 가지며 활성화 함수로 ReLU를 사용 
+        self.ffn_layer_2 = tf.keras.layers.Dense(embed_dim)                 # 두 번째 Dense 레이어는 출력 차원을 임베딩 차원으로 맞추기 위해 embed_dim을 사용
 
-        self.out = tf.keras.layers.Dense(tokenizer.vocabulary_size(), activation="softmax")
+        self.out = tf.keras.layers.Dense(tokenizer.vocabulary_size(), activation="softmax") # 최종 출력을 위한 Dense 레이어
 
-        self.dropout_1 = tf.keras.layers.Dropout(0.3)
+        self.dropout_1 = tf.keras.layers.Dropout(0.3)                   # 과적합 방지
         self.dropout_2 = tf.keras.layers.Dropout(0.5)
     
 
-    def call(self, input_ids, encoder_output, training, mask=None):
-        embeddings = self.embedding(input_ids)
+    def call(self, input_ids, encoder_output, training, mask=None): # input_ids는 입력 토큰의 ID, training은 모델이 훈련 모드인지 예측 모드인지를 나타내는 부울 값?
+        embeddings = self.embedding(input_ids)  # 입력 ID를 임베딩 벡터로 변환. 이 임베딩은 시퀀스 내 각 토큰을 고차원 공간에서의 밀집 벡터로 매핑
 
-        combined_mask = None
+        combined_mask = None            # combined_mask와 padding_mask를 초기화. 이들은 어텐션 메커니즘에서 특정 위치를 무시하기 위해 사용
         padding_mask = None
         
-        if mask is not None:
-            causal_mask = self.get_causal_attention_mask(embeddings)
-            padding_mask = tf.cast(mask[:, :, tf.newaxis], dtype=tf.int32)
-            combined_mask = tf.cast(mask[:, tf.newaxis, :], dtype=tf.int32)
-            combined_mask = tf.minimum(combined_mask, causal_mask)
+        if mask is not None:        # mask가 제공되었는지 확인, mask는 일반적으로 입력 시퀀스에서 패딩된 부분, 패딩은 시퀀스의 길이를 동일하게 맞추기 위해 추가된 불필요한 값
+            causal_mask = self.get_causal_attention_mask(embeddings)    # 인과적 마스크를 생성, 인과적 마스크 : 모델이 주어진 시점에서 오직 이전의 정보만을 참조하도록 강제함
+            padding_mask = tf.cast(mask[:, :, tf.newaxis], dtype=tf.int32)  # 제공된 mask를 3차원 텐서로 확장하고 정수형으로 변환합니다. 이 padding_mask는 시퀀스 내의 패딩 부분을 식별하는 데 사용
+            combined_mask = tf.cast(mask[:, tf.newaxis, :], dtype=tf.int32) # mask를 다시 한 번 변형하여 combined_mask를 생성. 이 과정은 차원을 조정하여 mask가 어텐션 계산에 적합한 형태를 갖추도록 한다.
+            combined_mask = tf.minimum(combined_mask, causal_mask)          # combined_mask와 causal_mask를 결합하여 최종 마스크를 생성, 두 마스크 간의 요소별 최소값을 계산
+                                                                            # 이는 두 마스크 중 하나라도 어텐션을 차단하는 위치에는 최종 마스크도 어텐션을 차단하도록 보장
 
-        attn_output_1 = self.attention_1(
+        attn_output_1 = self.attention_1(       # 첫 번째 멀티 헤드 어텐션 레이어를 적용
             query=embeddings,
             value=embeddings,
             key=embeddings,
-            attention_mask=combined_mask,
+            attention_mask=combined_mask,       # combined_mask는 특정 위치의 어텐션을 차단하는 데 사용
             training=training
         )
 
-        out_1 = self.layernorm_1(embeddings + attn_output_1)
-
-        attn_output_2 = self.attention_2(
-            query=out_1,
+        out_1 = self.layernorm_1(embeddings + attn_output_1)        # 어텐션의 결과와 입력 임베딩을 더한 후 레이어 정규화를 적용
+                                                                    # 트랜스포머에서 일반적인 "잔차 연결(residual connection)" 후에 정규화를 수행하는 패턴
+        attn_output_2 = self.attention_2(                           # 두 번째 멀티 헤드 어텐션 레이어를 적용
+            query=out_1,                                            # 이번에는 디코더의 이전 레이어 출력(out_1)을 쿼리로, 인코더의 출력을 키와 값으로 사용
             value=encoder_output,
-            key=encoder_output,
+            key=encoder_output,                                     # "인코더-디코더 어텐션"이라고 불리며, 디코더가 인코더의 출력을 참조할 수 있게 합니다
             attention_mask=padding_mask,
             training=training
         )
 
-        out_2 = self.layernorm_2(out_1 + attn_output_2)
+        out_2 = self.layernorm_2(out_1 + attn_output_2)             # 두 번째 어텐션 레이어의 출력과 이전 레이어의 출력을 더한 후 레이어 정규화를 적용
 
-        ffn_out = self.ffn_layer_1(out_2)
-        ffn_out = self.dropout_1(ffn_out, training=training)
+        ffn_out = self.ffn_layer_1(out_2)                           # 피드포워드 신경망(FFN)을 적용
+        ffn_out = self.dropout_1(ffn_out, training=training)        # 첫 번째 Dense 레이어를 통과한 후 드롭아웃을 적용하고, 두 번째 Dense 레이어를 통과
         ffn_out = self.ffn_layer_2(ffn_out)
 
-        ffn_out = self.layernorm_3(ffn_out + out_2)
-        ffn_out = self.dropout_2(ffn_out, training=training)
-        preds = self.out(ffn_out)
-        return preds
+        ffn_out = self.layernorm_3(ffn_out + out_2)                 # FFN의 출력과 이전 레이어의 출력을 더한 후 레이어 정규화를 적용하고,
+        ffn_out = self.dropout_2(ffn_out, training=training)        #  드롭아웃을 다시 적용
+        preds = self.out(ffn_out)                       # 마지막 Dense 레이어를 통해 최종 예측을 생성, 소프트맥스 활성화 함수를 사용하여 각 토큰의 확률 분포를 출력
+        return preds                                                # 계산된 예측을 반환
 
 
-    def get_causal_attention_mask(self, inputs):
-        input_shape = tf.shape(inputs)
+    def get_causal_attention_mask(self, inputs):            #  인과적(Sequential) 어텐션은 주로 언어 모델링과 같이, 현재 위치에서 이전 위치의 정보만을 참조하여 다음 단어를 예측할 때 사용
+        input_shape = tf.shape(inputs)                                  # inputs의 형태를 구하고, 배치 크기(batch_size)와 시퀀스 길이(sequence_length)를 추출
         batch_size, sequence_length = input_shape[0], input_shape[1]
-        i = tf.range(sequence_length)[:, tf.newaxis]
-        j = tf.range(sequence_length)
-        mask = tf.cast(i >= j, dtype="int32")
-        mask = tf.reshape(mask, (1, input_shape[1], input_shape[1]))
-        mult = tf.concat(
-            [tf.expand_dims(batch_size, -1), tf.constant([1, 1], dtype=tf.int32)],
+        i = tf.range(sequence_length)[:, tf.newaxis]                # sequence_length 길이만큼의 범위를 생성하여 i와 j에 할당
+        j = tf.range(sequence_length)                               # i에는 새로운 축을 추가하여 형태를 변환 여기서 i와 j는 각각 시퀀스 내 위치 인덱스를 나타냄
+        mask = tf.cast(i >= j, dtype="int32")                       # i와 j를 비교하여, i가 j보다 크거나 같을 경우 True를, 그렇지 않을 경우 False를 반환하는 행렬을 생성, 행렬을 정수형(int32)으로 변환
+       # 결과적으로, 현재 위치(i)에서 이전 위치(j)를 참조할 수 있도록 하는 마스크가 생성. 현재 위치나 이전 위치에 대한 어텐션은 허용되지만, 미래 위치에 대한 어텐션은 차단
+        mask = tf.reshape(mask, (1, input_shape[1], input_shape[1]))    # 마스크의 형태를 (1, sequence_length, sequence_length)로 변환하여, 배치 크기에 관계없이 사용할 수 있도록 함
+        mult = tf.concat(                                           # 배치 크기를 포함하는 텐서를 생성하여, 마스크를 해당 배치 크기만큼 복제할 준비를 함
+            [tf.expand_dims(batch_size, -1), tf.constant([1, 1], dtype=tf.int32)],      # tf.constant([1, 1], dtype=tf.int32)는 시퀀스 길이와 시퀀스 길이 차원을 유지하기 위한 값
             axis=0
         )
-        return tf.tile(mask, mult)
+        return tf.tile(mask, mult)       # 마스크를 mult 변수에 정의된 대로 복제
+        #  결과적으로, 생성된 마스크는 전체 배치에 대해 적용될 수 있으며, 각 시퀀스에서 현재 위치나 이전 위치로만 어텐션을 수행할 수 있도록 합
+
+def CNN_Encoder():
+    inception_v3 = tf.keras.applications.InceptionV3(
+        include_top = False,
+        weights = 'imagenet'
+    )
+
+    output = inception_v3.output            # 모델의 출력을 가져옴, 모델의 최상위 층이 제거된 상태라, 이미지의 고차원적인 특징만을 담고있는 텐서가 된다
+    output = tf.keras.layers.Reshape(       # 모델의 출력 텐서 형태를 2차원으로 바꿔준다. 모든높이와 너비에 걸쳐있는 특징맵을 일렬로 펼치는 작업이다.
+        (-1, output.shape[-1]))(output)     # output.shape[-1]은 채널 차원을 유지
+    cnn_model = tf.keras.models.Model(inception_v3.input, output)       # 변형된 출력을 사용하여 새로운 모델을 정의. 이 모델은 InceptionV3의 입력을 받아서, 변형된 출력을 내보내는 구조를 가진다.
+    return cnn_model
+
+
+
+class ImageCaptioningModel():
+    
+    def __init__(self, cnn_model, encoder, decoder, image_aug=None):
+        super().__init__()
+        self.cnn_model = cnn_model                      #  클래스의 다른 메소드들에서 이들 컴포넌트에 접근할 수 있게 해줌
+        self.encoder = encoder
+        self.decoder = decoder
+        self.image_aug = image_aug
+        self.loss_tracker = tf.keras.metrics.Mean(name='loss')          # fit과정에서 평균 loss계산
+        self.acc_tracker = tf.keras.metrics.Mean(name='accuracy')       # fit과정에서 평균 acc 계산
+
+    def calculate_loss(self, y_true, y_pred, mask):     # 이 메소드는 실제 레이블(y_true), 모델의 예측값(y_pred), 그리고 손실 계산 시 사용할 마스크(mask)를 인자로 받는다.
+        loss = self.loss(y_true, y_pred)                # 
+        mask = tf.cast(mask, dtype=loss.dtype)
+        loss *= mask
+        return tf.reduce_sum(loss) / tf.reduce_sum(mask)
+    
+    def calculate_accuracy(self, y_true, y_pred, mask):
+        accuracy = tf.equal(y_true, tf.argmax(y_pred, axis=2))
+        accuracy = tf.math.logical_and(mask, accuracy)
+        accuracy = tf.cast(accuracy, dtype=tf.float32)
+        mask = tf.cast(mask, dtype=tf.float32)
+        return tf.reduce_sum(accuracy) / tf.reduce_sum(mask)
+
+
+
+
+
+
 
 
 
@@ -321,6 +368,13 @@ class TransformerDecoderLayer(tf.keras.layers.Layer):
 
 encoder = TransformerEncoderLayer(EMBEDDING_DIM, 1)         # 인코더 층을 생성, 임베딩 벡터의 차원을 지정
 decoder = TransformerDecoderLayer(EMBEDDING_DIM, UNITS, 8)
+
+
+cnn_model = CNN_Encoder()
+caption_model = ImageCaptioningModel(
+    cnn_model = cnn_model, encoder=encoder, decoder=decoder, imag_aug = image_augmentation)
+
+
 
 
 
