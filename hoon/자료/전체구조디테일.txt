@@ -1,0 +1,6 @@
+1. CNN Encoder:
+InceptionV3 - 이미지 특성 추출을 위한 사전 훈련된 CNN 모델
+              symmetric(대칭) and asymmetric(비대칭) building blocks including convolutions, average pooling, max pooling, concatenations, dropouts, and fully connected layers
+               
+2. Transformer Encoder :
+attention : 

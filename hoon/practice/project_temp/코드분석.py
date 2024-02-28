@@ -59,20 +59,20 @@ def preprocess(text):
 captions['caption'] = captions['caption'].apply(preprocess)                 # captions 데이터프레임의 'caption' 열에 있는 모든 행에 preprocess 함수를 적용합니다.
 # print(captions.head())
 
-random_row = captions.sample(1).iloc[0]                                    # 임의의 하나의 행을 random_row 변수에 할당                                                
-im = Image.open(random_row.image)                                           # random_row 이미지에 접근
+# random_row = captions.sample(1).iloc[0]                                    # 임의의 하나의 행을 random_row 변수에 할당                                                
+# im = Image.open(random_row.image)                                           # random_row 이미지에 접근
 # im.show()                                                                  # 이미지 출력
 # print(f"출력 이미지 정보 : {random_row}")     
 # image      d:/_data/coco/archive/coco2017/train2017/00000...
 # caption         [start] a man with a ball of some sort [end]     # 
 
 MAX_LENGTH = 40
-VOCABULARY_SIZE = 40000
+VOCABULARY_SIZE = 29630
 BATCH_SIZE = 64
 BUFFER_SIZE = 1000
 EMBEDDING_DIM = 512
 UNITS = 512
-EPOCHS = 1
+EPOCHS = 20
 
 tokenizer = tf.keras.layers.TextVectorization(                              # "토큰(token)"은 텍스트를 작은 단위로 나누는 과정에서의 기본 단위를 의미.
     max_tokens=VOCABULARY_SIZE,                                             # max_tokens: 단어 집합의 크기를 결정. 즉, 텍스트에서 가장 빈도가 높은 상위 n개의 단어만을 사용하여 벡터화
@@ -156,6 +156,7 @@ image_augmentation = tf.keras.Sequential(
         tf.keras.layers.RandomContrast(0.3),                                # 이미지의 대비를 무작위로 조절합니다.
     ]
 )
+
 def CNN_Encoder():
     inception_v3 = tf.keras.applications.InceptionV3(
         include_top=False                                                   # 모델의 상단 부분 (Fully Connected Layer) 을 포함하지 않음. Fully Connected Layer는 모든 입력 뉴런과 출력 뉴런이 서로 연결되어 있는 레이어
@@ -164,7 +165,7 @@ def CNN_Encoder():
         , weights='imagenet'                                                # # ImageNet 데이터셋으로 사전 훈련된 가중치를 사용합니다.
         
     )
-    inception_v3.trainable = False
+    
     output = inception_v3.output                                            # 모델의 출력을 가져옵니다.
     output = tf.keras.layers.Reshape(                                       # 출력을 재구성하여 3D 텐서를 2D 텐서로 변환
         (-1, output.shape[-1]))(output)
@@ -397,7 +398,7 @@ cross_entropy = tf.keras.losses.SparseCategoricalCrossentropy(
     from_logits=False, reduction="none"
 )
 
-early_stopping = tf.keras.callbacks.EarlyStopping(patience=5, restore_best_weights=True, monitor = 'val_accuracy')
+early_stopping = tf.keras.callbacks.EarlyStopping(patience=5, restore_best_weights=True, monitor = 'val_acc')
 
 caption_model.compile(
     optimizer=tf.keras.optimizers.Adam()
@@ -471,8 +472,8 @@ Image.open(img_path)
 pred_caption = generate_caption('D:/_data/coco/archive/test/test.jpg', add_noise=False)
 print('Predicted Caption:', pred_caption)
 print()
-im.show()
+# im.show()
 
 # 가중치 저장
-# caption_model.save_weights('D:\\_data\\coco\\archive\\imageCaptioning_coco.h5')
+caption_model.save_weights('D:\\_data\\coco\\archive\\imageCaptioning_coco.h5')
 
