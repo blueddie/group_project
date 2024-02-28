@@ -17,27 +17,33 @@ from math import sqrt
 from PIL import Image
 from tqdm.auto import tqdm
 import pickle
+from tf.keras.models import load_model
 
 # 기본 파일 위치
 BASE_PATH = 'd:/_data/coco/archive/coco2017'
 
-with open(f'{BASE_PATH}/annotations/captions_train2017.json', 'r') as f:
-    data = json.load(f)
-    data = data['annotations']
+with open(f'{BASE_PATH}/annotations/captions_train2017.json', 'r') as f:    
+    data = json.load(f)                                                     
+    data = data['annotations']                                              
 
-img_cap_pairs = []  # 리스트 생성
+with open(f'{BASE_PATH}/annotations/captions_val2017.json', 'r') as f:      
+    data2 = json.load(f)                                                    
+    data2 = data2['annotations']  
 
-for sample in data:
-    img_name = '%012d.jpg' % sample['image_id']
-    img_cap_pairs.append([img_name, sample['caption']])
+img_cap_pairs = []                                                          
+for sample in data:                                                         
+    img_name = '%012d.jpg' % sample['image_id']                             
+    img_cap_pairs.append([img_name, sample['caption']])                     
 
-captions = pd.DataFrame(img_cap_pairs, columns = ['image', 'caption'])
-captions['image'] = captions['image'].apply(
-    lambda x: f'{BASE_PATH}/train2017/{x}'
+for sample in data2:                                                       
+    img_name = '%012d.jpg' % sample['image_id']                            
+    img_cap_pairs.append([img_name, sample['caption']])  
+
+captions = pd.DataFrame(img_cap_pairs, columns = ['image', 'caption'])      
+captions['image'] = captions['image'].apply(                                
+    lambda x: f'{BASE_PATH}/train2017/{x}'                                  
+    # lambda x: f'{x}'                                  
 )
-captions = captions.sample(70000)
-captions = captions.reset_index(drop=True)
-# print(captions.head())
 
 def preprocess(text):
     text = text.lower()
@@ -51,13 +57,13 @@ captions['caption'] = captions['caption'].apply(preprocess)
 # print(captions.head())
 
 random_row = captions.sample(1).iloc[0]
-# print(random_row.caption)  # 이게 왜 됨?
+# print(random_row.caption) 
 # print()
 # im = Image.open(random_row.image)
 # im.show()
 
 MAX_LENGTH = 40
-VOCABULARY_SIZE = 15000
+VOCABULARY_SIZE = 20000
 BATCH_SIZE = 64
 BUFFER_SIZE = 1000
 EMBEDDING_DIM = 512
@@ -70,7 +76,6 @@ tokenizer = tf.keras.layers.TextVectorization(
     output_sequence_length=MAX_LENGTH
 )
 tokenizer.adapt(captions['caption'])
-# print(tokenizer.vocabulary_size())  # 단어 대충 12000개 좀 안됨. 누를때마다 바뀜 아마 random_row 때문인거같음
 
 pickle.dump(tokenizer.get_vocabulary(), open('vocab_coco.file', 'wb'))
 
@@ -90,7 +95,7 @@ for img, cap in zip(captions['image'], captions['caption']):
 img_keys = list(img_to_cap_vector.keys())
 random.shuffle(img_keys)
 
-slice_index = int(len(img_keys)*0.8)
+slice_index = int(len(img_keys)*0.9)
 img_name_train_keys, img_name_val_keys = (img_keys[:slice_index], 
                                           img_keys[slice_index:])
 
@@ -107,7 +112,7 @@ for imgv in img_name_val_keys:
     capv_len = len(img_to_cap_vector[imgv])
     val_imgs.extend([imgv] * capv_len)
     val_captions.extend(img_to_cap_vector[imgv])
-len(train_imgs), len(train_captions), len(val_imgs), len(val_captions)
+print(len(train_imgs), len(train_captions), len(val_imgs), len(val_captions))
 
 def load_data(img_path, caption):
     img = tf.io.read_file(img_path)
@@ -367,7 +372,7 @@ cnn_model = CNN_Encoder()
 caption_model = ImageCaptioningModel(
     cnn_model=cnn_model, encoder=encoder, decoder=decoder, image_aug=image_augmentation,
 )
-
+caption_model.tf.keras.load_weights('c:/Study/project/group_project/min/save/caption_model_2.h5)
 cross_entropy = tf.keras.losses.SparseCategoricalCrossentropy(
     from_logits=False, reduction="none"
 )
@@ -450,7 +455,7 @@ im.show()
 
 # 가중치 저장
 caption_model.save_weights('c:/Study/project/group_project/min/save/caption_model.h5')
-# pickle.dump(caption_model, open('c:/Study/project/group_project/min/caption_model.dat', 'wb'))    # error
+# pickle.dump(caption_model, open('c:/Study/project/group_project/min/caption_model.dat', 'wb'))
 # pickle.dump(caption_model, open('c:/Study/project/group_project/min/caption_model.pkl', 'wb'))
 
-dump(caption_model, 'c:/Study/project/group_project/min/save/caption_model.joblib')
+# dump(caption_model, 'c:/Study/project/group_project/min/save/caption_model.joblib')

@@ -17,6 +17,14 @@ from math import sqrt
 from PIL import Image
 from tqdm.auto import tqdm
 import pickle
+from ultralytics import YOLO
+
+
+def detect_objects(image_path, yolo_model):
+    # 이미지에서 객체를 감지하는 코드를 작성하세요
+    # 예시:
+    detected_objects = yolo_model.detect(image_path)
+    return detected_objects
 
 # 기본 파일 위치
 BASE_PATH = 'd:/_data/coco/archive/coco2017'
@@ -37,7 +45,6 @@ captions['image'] = captions['image'].apply(
 )
 captions = captions.sample(70000)
 captions = captions.reset_index(drop=True)
-# print(captions.head())
 
 def preprocess(text):
     text = text.lower()
@@ -48,13 +55,6 @@ def preprocess(text):
     return text
 
 captions['caption'] = captions['caption'].apply(preprocess)
-# print(captions.head())
-
-random_row = captions.sample(1).iloc[0]
-# print(random_row.caption)  # 이게 왜 됨?
-# print()
-# im = Image.open(random_row.image)
-# im.show()
 
 MAX_LENGTH = 40
 VOCABULARY_SIZE = 15000
@@ -70,9 +70,6 @@ tokenizer = tf.keras.layers.TextVectorization(
     output_sequence_length=MAX_LENGTH
 )
 tokenizer.adapt(captions['caption'])
-# print(tokenizer.vocabulary_size())  # 단어 대충 12000개 좀 안됨. 누를때마다 바뀜 아마 random_row 때문인거같음
-
-pickle.dump(tokenizer.get_vocabulary(), open('vocab_coco.file', 'wb'))
 
 word2idx = tf.keras.layers.StringLookup(
     mask_token="",
@@ -107,7 +104,6 @@ for imgv in img_name_val_keys:
     capv_len = len(img_to_cap_vector[imgv])
     val_imgs.extend([imgv] * capv_len)
     val_captions.extend(img_to_cap_vector[imgv])
-len(train_imgs), len(train_captions), len(val_imgs), len(val_captions)
 
 def load_data(img_path, caption):
     img = tf.io.read_file(img_path)
@@ -137,6 +133,7 @@ image_augmentation = tf.keras.Sequential(
         tf.keras.layers.RandomContrast(0.3),
     ]
 )
+
 def CNN_Encoder():
     inception_v3 = tf.keras.applications.InceptionV3(
         include_top=False,
@@ -359,6 +356,32 @@ class ImageCaptioningModel(tf.keras.Model):
     @property
     def metrics(self):
         return [self.loss_tracker, self.acc_tracker]
+
+# YOLO 모델 로드
+yolo_model = YOLO("yolov8n.pt")  # ""안에 모델 가중치 불러오기. n,s,m,l,x 순
+
+def add_objects_to_caption(detected_objects, original_caption):
+    # 감지된 객체 정보를 기존 캡션에 추가하는 로직을 작성합니다.
+    # 예시: 감지된 객체 정보를 캡션 뒤에 추가합니다.
+    caption_with_objects = original_caption + ' ' + ', '.join(detected_objects)
+    return caption_with_objects
+# 이미지에서 객체 감지하여 캡션에 추가하는 함수 정의
+
+def generate_caption_with_objects(img_path, add_noise=False):
+    detected_objects = detect_objects(img_path, yolo_model)
+    # 객체를 캡션에 추가하는 로직을 작성하세요
+    # 예시:
+    caption_with_objects = add_objects_to_caption(detected_objects, captions['caption'])
+    return caption_with_objects
+
+# 이미지 경로 지정
+img_path = 'path/to/image.jpg'
+
+# 객체 감지하여 캡션 생성
+pred_caption = generate_caption_with_objects(img_path)
+print('Predicted Caption with Objects:', pred_caption)
+print()
+Image.open(img_path)
 
 encoder = TransformerEncoderLayer(EMBEDDING_DIM, 1)
 decoder = TransformerDecoderLayer(EMBEDDING_DIM, UNITS, 8)
