@@ -344,22 +344,74 @@ class ImageCaptioningModel():
         self.acc_tracker = tf.keras.metrics.Mean(name='accuracy')       # fit과정에서 평균 acc 계산
 
     def calculate_loss(self, y_true, y_pred, mask):     # 이 메소드는 실제 레이블(y_true), 모델의 예측값(y_pred), 그리고 손실 계산 시 사용할 마스크(mask)를 인자로 받는다.
-        loss = self.loss(y_true, y_pred)                # 
-        mask = tf.cast(mask, dtype=loss.dtype)
-        loss *= mask
-        return tf.reduce_sum(loss) / tf.reduce_sum(mask)
+                                                        # 마스크는 일반적으로 시퀀스 데이터에서 특정 부분을 무시하기 위해 사용
+        loss = self.loss(y_true, y_pred)                # 실제 레이블(y_true)과 예측 레이블(y_pred) 사이의 손실을 계산, 계산된 손실 값을 loss 변수에 저장
+        mask = tf.cast(mask, dtype=loss.dtype)          # mask를 loss와 같은 데이터 타입으로 형변환, tf.cast 함수는 변수의 데이터 타입을 변경하는 데 사용
+                                                        #  마스크의 데이터 타입을 손실 값의 데이터 타입으로 변경하여 후속 연산에서 데이터 타입 불일치 문제를 방지
+        loss *= mask        # 손실 값에 마스크를 요소별(element-wise)로 곱함, 마스크의 값은 0또는 1의 값을 가지는데 마스크가 0인 위치에서의 손실은 제외된다. 
+        return tf.reduce_sum(loss) / tf.reduce_sum(mask)    # 마스크를 적용한 손실의 합을 마스크 값의 합으로 나누어 평균 손실을 계산
     
-    def calculate_accuracy(self, y_true, y_pred, mask):
-        accuracy = tf.equal(y_true, tf.argmax(y_pred, axis=2))
-        accuracy = tf.math.logical_and(mask, accuracy)
-        accuracy = tf.cast(accuracy, dtype=tf.float32)
-        mask = tf.cast(mask, dtype=tf.float32)
-        return tf.reduce_sum(accuracy) / tf.reduce_sum(mask)
+    def calculate_accuracy(self, y_true, y_pred, mask): # 이 메소드는 실제 레이블(y_true), 모델의 예측값(y_pred), 그리고 손실 계산 시 사용할 마스크(mask)를 인자로 받는다
+        accuracy = tf.equal(y_true, tf.argmax(y_pred, axis=2))  # 예측된 레이블(y_pred)의 최대 값(즉, 가장 높은 확률을 가진 클래스의 인덱스)이 실제 레이블(y_true)과 같은지 비교
+                            # 다중 클래스 분류 문제에서 클래스를 예측하는 표준 방식. 이 비교 결과는 불리언(Boolean) 텐서로 반환
+        accuracy = tf.math.logical_and(mask, accuracy)  # 마스크와 앞서 계산된 정확도 간의 논리적 AND 연산을 수행,마스크가 True(또는 1)인 위치에서만 정확도 값을 유지하고
+                                                        # 그렇지 않은 경우(즉, 패딩된 위치)에는 False로 설정, 결국 패딩된 부분을 정확도 계산에서 제외
+        accuracy = tf.cast(accuracy, dtype=tf.float32)  # 불리언 텐서인 accuracy를 실수형(float32)으로 변환합니다. 이는 정확도를 계산하기 위해 필요한 수치 연산을 가능하게 합니다
+        mask = tf.cast(mask, dtype=tf.float32)          #  마스크를 실수형(float32)으로 변환, 마스크와 정확도 값을 동일한 데이터 타입으로 맞추고, 이후의 수치 연산을 용이하게 함
+        return tf.reduce_sum(accuracy) / tf.reduce_sum(mask)    # 마스크가 적용된 정확도의 총합을 마스크가 적용된 요소의 총 수로 나누어 평균 정확도를 계산
+                                                                # 스크된(패딩된) 부분을 제외하고 실제 데이터에 대한 모델의 정확도를 평가
 
+    def compute_loss_and_acc(self, img_embed, captions, training=True): # 이미지 임베딩, 캡션, 그리고 훈련 중인지 여부를 나타내는 training 플래그를 인수로 받음
+        encoder_output = self.encoder(img_embed, training = True)       # encoder는 이미지 임베딩을 입력으로 받아서 인코딩된 특성을 출력
+        y_input = captions[:, :-1]      # 각 캡션의 마지막 토큰을 제외한 부분을 y_input으로 사용, 디코더에 입력으로 주어지며, 각 캡션의 시작부터 끝까지를 예측하는데 사용
+        y_true = captions[:, 1:]        # y_true는 각 캡션의 첫 토큰을 제외한 모든 토큰을 실제 값으로 사용, 모델의 예측을 실제 값과 비교하는 데 사용
+        mask = (y_true != 0)        # mask는 y_true에서 0이 아닌 값을 가지는 위치를 나타냄, 손실과 정확도 계산 시 패딩된 부분을 무시하도록 함
+        y_pred = self.decoder(      # decoder는 y_input, 인코더의 출력(encoder_output), 그리고 mask를 입력으로 받아 예측된 캡션을 출력
+            y_input, encoder_output, training=True, mask=mask)  
+        loss = self.calculate_loss(y_true, y_pred, mask)    # calculate_loss 메서드는 y_true, y_pred, 그리고 패딩 마스크를 사용하여 손실을 계산
+        acc = self.calculate_accuracy(y_true, y_pred, mask) # calculate_loss 메서드는 y_true, y_pred, 그리고 패딩 마스크를 사용하여 정확도를 계산
+        return loss, acc            # 계산된 loss와 acc를 반환
+    
+    def train_step(self, batch):        # 하나의 배치에 대한 훈련 단계를 정의,  batch는 이미지와 해당 캡션을 포함
+        imgs, captions = batch          # 입력된 batch에서 이미지(imgs)와 캡션(captions)을 추출
+        
+        if self.image_aug:              # 만약 이미지 증강(image_aug)이 활성화되어 있다면
+            imgs = self.image_aug(imgs)     # 이미지 증강을 이미지 배치에 적용
+            
+            img_embed = self.cnn_model(imgs)        # cnn_model을 사용하여 이미지 배치를 임베딩으로 변환, CNN 모델은 이미지의 특징을 추출하는 역할
+            
+            with tf.GradientTape() as tape:  # GradientTape를 사용하여 자동 미분을 위한 컨텍스트를 생성, 학습 가능한 변수에 대한 손실 함수의 기울기를 계산하는 데 사용
+                loss, acc = self.compute_loss_and_acc(      # 현재 배치에 대한 손실과 정확도를 계산
+                    img_embed, captions
+                )
+            train_vars = (                  # 훈련 가능한 변수들을, 인코더와 디코더의 훈련 가능한 변수들의 합으로 정의
+                self.encoder.trainable_variables + self.decoder.trainable_variables #  이 변수들에 대한 기울기를 계산하여 모델을 업데이트할 때 사용
+            )
+            grads = tape.gradient(loss, train_vars)         # tape.gradient를 사용하여 주어진 손실에 대한 훈련 가능한 변수들의 기울기를 계산
+            self.optimizer.apply_gradients(zip(grads, train_vars))  # 계산된 기울기와 변수들을 옵티마이저에 적용하여 모델의 가중치를 업데이트
+            self.loss_tracker.update_state(loss)            # 손실과 정확도 추적기를 업데이트하여 현재 훈련 단계의 손실과 정확도를 기록
+            self.acc_tracker.update_state(acc)
+            
+            return {"loss": self.loss_tracker.result(), "acc": self.acc_tracker.result()}  # 최종적으로, 현재까지의 평균 손실과 정확도를 반환
 
+    def test_step(self, batch):         #  테스트 배치를 처리, 모델이 새로운 데이터에 대해 어떻게 수행하는지 평가
+        imgs, captions = batch          # 입력된 batch에서 이미지(imgs)와 해당 캡션(captions)을 분리
+        
+        img_embed = self.cnn_model(imgs)        # self.cnn_model을 사용하여 입력 이미지를 임베딩으로 변환, 이미지에서 중요한 특성을 추출하는 데 사용
+        
+        loss, acc = self.compute_loss_and_acc(
+            img_embed, captions, training=False
+        )
 
-
-
+        self.loss_tracker.update_state(loss)
+        self.acc_tracker.update_state(acc)
+        
+        return {"loss": self.loss_tracker.result(), "acc": self.acc_tracker.result()}
+    
+    @property
+    def metrics(self):
+        return [self.loss_tracker, self.acc_tracker]
+        
 
 
 

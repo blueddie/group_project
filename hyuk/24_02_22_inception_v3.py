@@ -89,12 +89,11 @@ model.summary()
 
 
 # rnn_model = Sequential([
-#     # TimeDistributed 레이어는 각 시간 단계에서 동일한 Dense 변환을 적용합니다.
 #     TimeDistributed(Flatten(), input_shape=feature_shape),
 #     LSTM(512, return_sequences=True),
 #     LSTM(512),
 #     Dense(256, activation='relu'),
-#     Dense(1, activation='relu')  # num_classes는 최종 출력 클래스의 수입니다.
+#     Dense(1, activation='relu')  
 # ])
 
 # rnn_model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
