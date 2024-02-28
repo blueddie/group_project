@@ -17,6 +17,7 @@ from math import sqrt
 from PIL import Image
 from tqdm.auto import tqdm
 import pickle
+from tf.keras.models import load_model
 
 # 기본 파일 위치
 BASE_PATH = 'd:/_data/coco/archive/coco2017'
@@ -371,7 +372,7 @@ cnn_model = CNN_Encoder()
 caption_model = ImageCaptioningModel(
     cnn_model=cnn_model, encoder=encoder, decoder=decoder, image_aug=image_augmentation,
 )
-
+caption_model.tf.keras.load_weights('c:/Study/project/group_project/min/save/caption_model_2.h5)
 cross_entropy = tf.keras.losses.SparseCategoricalCrossentropy(
     from_logits=False, reduction="none"
 )
