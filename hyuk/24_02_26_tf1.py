@@ -152,11 +152,11 @@ len(train_imgs), len(train_captions), len(val_imgs), len(val_captions)
 # 55897 55897 14103 14103
 
 def load_data(img_path, caption):   # load_data 함수는 주어진 img_path와 caption을 입력으로 받아, 이미지를 로드하고 전처리 후 해당 이미지와 토큰화된 캡션을 반환
-    img = tf.io.read_file(img_path)                                     # 파일의 내용을 바이트 형태로 반환
-    img = tf.io.decode_jpeg(img, channels=3)                            # 읽어온 이미지 파일(바이트 데이터)를 JPEG 포맷으로 디코드(해석), channels=3 매개변수는 이미지가 RGB 채널을 가진 컬러 이미지임을 나타냄
+    img = tf.io.read_file(img_path)                             # 파일의 내용을 바이트 형태로 반환
+    img = tf.io.decode_jpeg(img, channels=3)  # 읽어온 이미지 파일(바이트 데이터)를 JPEG 포맷으로 디코드(해석), channels=3 매개변수는 이미지가 RGB 채널을 가진 컬러 이미지임을 나타냄
     img = tf.keras.layers.Resizing(299, 299)(img)                       # InceptionV3 모델과 같은 특정 모델에서 요구하는 입력 크기 (299, 299)
     img = tf.keras.applications.inception_v3.preprocess_input(img)   # 이 함수를 이용하여 이미지데이터를 전처리, InceptionV3 모델에 적합한 형태로 이미지 데이터를 스케일링하고 정규화
-    caption = tokenizer(caption)                                        # 이전에 정의된 tokenizer 객체를 사용하여 입력 캡션을 토큰화, 이 과정에서 캡션은 모델이 처리할 수 있는 수치 데이터(토큰의 시퀀스)로 변환
+    caption = tokenizer(caption)       # 이전에 정의된 tokenizer 객체를 사용하여 입력 캡션을 토큰화, 이 과정에서 캡션은 모델이 처리할 수 있는 수치 데이터(토큰의 시퀀스)로 변환
     return img, caption                                                 # 전처리된 이미지와 토큰화된 캡션을 반환
 
 train_dataset = tf.data.Dataset.from_tensor_slices(     # train_imgs와 train_captions 배열을 사용하여 TensorFlow의 데이터셋 객체를 생성,
@@ -185,19 +185,20 @@ image_augmentation = tf.keras.Sequential(
      ]
 )
 
-class TransformerEncoderLayer(tf.keras.layer):          # TransformerEncoderLayer 클래스는 tf.keras.layers.Layer를 상속받아 정의된다. 이를 통해 사용자 정의 층(custom layer)을 만들 수 있다
+class TransformerEncoderLayer(tf.keras.layer): # TransformerEncoderLayer 클래스는 tf.keras.layers.Layer를 상속받아 정의된다. 이를 통해 사용자 정의 층(custom layer)을 만들기가능
     
     def __init__(self, embed_dim, num_heads):           # 클래스의 생성자(__init__)에서는 임베딩 차원(embed_dim)과 멀티 헤드 어텐션에서의 헤드 수(num_heads)를 매개변수로 받습니다.
         super().__init__()                                # super().__init__()를 호출하여 부모 클래스(tf.keras.layers.Layer)의 생성자를 초기화합니다.
         self.layer_norm_1 = tf.keras.layers.LayerNormalization()    # 두 개의 층 정규화(layer normalization) 층을 정의
         self.layer_norm_2 = tf.keras.layers.LayerNormalization()    # 층 정규화는 입력 데이터의 평균과 분산을 사용하여 정규화를 수행하고, 모델의 학습을 안정화시키는 데 도움을 준다.
         self.attention = tf.keras.layers.MultiHeadAttention(        # 멀티 헤드 어텐션 층을 정의
-            num_heads=num_heads, key_dim=embed_dim)                 # 이 층은 입력 데이터의 다른 부분에 대한 정보를 병렬로 처리할 수 있게 해주며, 입력 시퀀스 내의 다양한 위치에서 정보를 통합
-        self.dense = tf.keras.layers.Dense(embed_dim, activation='relu')    # 포지션 와이즈 피드포워드 신경망을 위한 밀집(dense) 층을 정의합니다. 이 층은 각 위치에서 동일하게 적용되며, 비선형 변환을 제공
+            num_heads=num_heads, key_dim=embed_dim)      # 이 층은 입력 데이터의 다른 부분에 대한 정보를 병렬로 처리할 수 있게 해주며, 입력 시퀀스 내의 다양한 위치에서 정보를 통합
+        self.dense = tf.keras.layers.Dense(embed_dim, activation='relu') # 포지션 와이즈 피드포워드 신경망을 위한 밀집(dense) 층을 정의합니다. 
+                                                                         # 이 층은 각 위치에서 동일하게 적용되며, 비선형 변환을 제공
         
 
     def call(self, x, training):
-        x = self.layer_norm_1(x)        # 입력 x에 대해 첫 번째 레이어 정규화를 수행, 각 입력의 특성(feature)들이 평균 0, 분산 1을 가지도록 정규화하는 과정. 학습 과정을 안정화시키고, 학습 속도를 향상 굿
+        x = self.layer_norm_1(x)    # 입력 x에 대해 첫번째 레이어 정규화, 각 입력의 특성들이 평균 0, 분산 1을 가지도록 정규화하는 과정. 학습 과정을 안정화시키고, 학습 속도를 향상 굿
         x = self.dense(x)               # 정규화된 입력 x를 밀집(dense) 층에 통과시킴. 이 밀집 층은 입력에 대해 가중치를 적용하고 활성화 함수(여기서는 'relu')를 통과시킨다,
                                         # 이 과정은 입력 데이터에 비선형 변환을 적용
         
@@ -212,15 +213,17 @@ class TransformerEncoderLayer(tf.keras.layer):          # TransformerEncoderLaye
         x = self.layer_norm_2(x + attn_output)  # 어텐션 연산의 출력(attn_output)과 이전 단계의 출력 x를 더한 후, 두 번째 레이어 정규화를 적용
         return x                                # '잔차 연결(residual connection)'과 '레이어 정규화'의 조합으로, 모델의 깊이가 깊어져도 안정적인 학습
 
-class Embeddings(tf.keras.layers.Layer):    # Transformer 모델에서 임베딩 층은 입력 텍스트의 각 단어를 고정된 크기의 벡터로 변환하는 역할을 하며, 단어의 위치 정보를 모델에 제공하는 위치 임베딩도 함께 사용
+class Embeddings(tf.keras.layers.Layer):    # Transformer 모델에서 임베딩 층은 입력 텍스트의 각 단어를 고정된 크기의 벡터로 변환하는 역할을 하며,
+                                            # 단어의 위치 정보를 모델에 제공하는 위치 임베딩도 함께 사용
 
     def __init__(self, vocab_size, embed_dim, max_len):
         super().__init__()
         self.token_embeddings = tf.keras.layers.Embedding(      # embed_dim: 임베딩 벡터의 차원으로, 각 단어를 표현할 벡터의 크기
             vocab_size, embed_dim)                              # max_len: 입력 시퀀스의 최대 길이로, 모델이 처리할 수 있는 입력 시퀀스의 최대 단어 수
         self.position_embeddings = tf.keras.layers.Embedding(   # 위치 임베딩 정의,  max_len : 위치 임베딩을 위한 어휘 사전의 크기 역할
-            max_len, embed_dim, input_shape=(None, max_len))    # embed_dim은 위치 임베딩 벡터의 차원을 지정하며, 토큰 임베딩과 동일한 차원을 사용. 이는 토큰 임베딩과 위치 임베딩을 결합할 때 차원이 일치해야 하기 때문
-                                                                #  input_shape=(None, max_len) 여기서 None은 배치크기이며, 어떤 크기의 배치도 처리할 수 있음을 의미
+            max_len, embed_dim, input_shape=(None, max_len))    # embed_dim은 위치 임베딩 벡터의 차원을 지정하며
+                                                                # 토큰 임베딩과 동일한 차원을 사용.이는 토큰 임베딩과 위치 임베딩을 결합할 때 차원이 일치해야 하기 때문
+                                                                # input_shape=(None, max_len) 여기서 None은 배치크기이며, 어떤 크기의 배치도 처리할 수 있음을 의미
 
     def call(self, input_ids):                                      # input_ids는 모델이 처리할 텍스트를 토큰 ID 시퀀스로 변환한 것입니다. 각 ID는 어휘 사전 내의 특정 단어를 나타냄
         length = tf.shape(input_ids)[-1]                            # length는 입력 시퀀스의 길이를 나타냄
@@ -238,7 +241,7 @@ class TransformerDecoderLayer(tf.keras.layers.Layer):
     def __init__(self, embed_dim, units, num_heads):            # units: 피드포워드 신경망(FFN)의 유닛(뉴런) 수.
         super().__init__()
         self.embedding = Embeddings(                        # 입력 토큰 ID를 고정된 크기의 벡터로 변환하는 임베딩 레이어를 생성, MAX_LENGTH는 입력 시퀀스의 최대 길이를 의미
-            tokenizer.vocabulary_size(), embed_dim, MAX_LENGTH)     # tokenizer.vocabulary_size()는 토큰화에 사용된 어휘의 크기(어휘 사전의 크기), embed_dim은 임베딩 벡터의 차원
+            tokenizer.vocabulary_size(), embed_dim, MAX_LENGTH)  # tokenizer.vocabulary_size()는 토큰화에 사용된 어휘의 크기(어휘 사전의 크기), embed_dim은 임베딩 벡터의 차원
 
         self.attention_1 = tf.keras.layers.MultiHeadAttention(      
             num_heads=num_heads, key_dim=embed_dim, dropout=0.1         # dropout은 어텐션 스코어를 계산할 때 사용되는 드롭아웃 비율
@@ -251,7 +254,7 @@ class TransformerDecoderLayer(tf.keras.layers.Layer):
         self.layernorm_2 = tf.keras.layers.LayerNormalization()
         self.layernorm_3 = tf.keras.layers.LayerNormalization()
 
-        self.ffn_layer_1 = tf.keras.layers.Dense(units, activation="relu")   # 피드포워드 신경망(FFN)을 정의. 첫 번째 Dense 레이어는 units 개의 유닛을 가지며 활성화 함수로 ReLU를 사용 
+        self.ffn_layer_1 = tf.keras.layers.Dense(units, activation="relu") # 피드포워드 신경망(FFN)을 정의. 첫 번째 Dense 레이어는 units 개의 유닛을 가지며 활성화 함수로 ReLU를 사용 
         self.ffn_layer_2 = tf.keras.layers.Dense(embed_dim)                 # 두 번째 Dense 레이어는 출력 차원을 임베딩 차원으로 맞추기 위해 embed_dim을 사용
 
         self.out = tf.keras.layers.Dense(tokenizer.vocabulary_size(), activation="softmax") # 최종 출력을 위한 Dense 레이어
@@ -268,7 +271,7 @@ class TransformerDecoderLayer(tf.keras.layers.Layer):
         
         if mask is not None:        # mask가 제공되었는지 확인, mask는 일반적으로 입력 시퀀스에서 패딩된 부분, 패딩은 시퀀스의 길이를 동일하게 맞추기 위해 추가된 불필요한 값
             causal_mask = self.get_causal_attention_mask(embeddings)    # 인과적 마스크를 생성, 인과적 마스크 : 모델이 주어진 시점에서 오직 이전의 정보만을 참조하도록 강제함
-            padding_mask = tf.cast(mask[:, :, tf.newaxis], dtype=tf.int32)  # 제공된 mask를 3차원 텐서로 확장하고 정수형으로 변환합니다. 이 padding_mask는 시퀀스 내의 패딩 부분을 식별하는 데 사용
+            padding_mask = tf.cast(mask[:, :, tf.newaxis], dtype=tf.int32)  # 제공된 mask를 3차원 텐서로 확장하고 정수형으로 변환.이 padding_mask는 시퀀스 내의 패딩 부분을 식별하는 데 사용
             combined_mask = tf.cast(mask[:, tf.newaxis, :], dtype=tf.int32) # mask를 다시 한 번 변형하여 combined_mask를 생성. 이 과정은 차원을 조정하여 mask가 어텐션 계산에 적합한 형태를 갖추도록 한다.
             combined_mask = tf.minimum(combined_mask, causal_mask)          # combined_mask와 causal_mask를 결합하여 최종 마스크를 생성, 두 마스크 간의 요소별 최소값을 계산
                                                                             # 이는 두 마스크 중 하나라도 어텐션을 차단하는 위치에는 최종 마스크도 어텐션을 차단하도록 보장
@@ -327,7 +330,7 @@ def CNN_Encoder():
     output = inception_v3.output            # 모델의 출력을 가져옴, 모델의 최상위 층이 제거된 상태라, 이미지의 고차원적인 특징만을 담고있는 텐서가 된다
     output = tf.keras.layers.Reshape(       # 모델의 출력 텐서 형태를 2차원으로 바꿔준다. 모든높이와 너비에 걸쳐있는 특징맵을 일렬로 펼치는 작업이다.
         (-1, output.shape[-1]))(output)     # output.shape[-1]은 채널 차원을 유지
-    cnn_model = tf.keras.models.Model(inception_v3.input, output)       # 변형된 출력을 사용하여 새로운 모델을 정의. 이 모델은 InceptionV3의 입력을 받아서, 변형된 출력을 내보내는 구조를 가진다.
+    cnn_model = tf.keras.models.Model(inception_v3.input, output)       # 변형된 출력을 사용하여 새로운 모델을 정의. 이 모델은 InceptionV3의 입력을 받아서, 변형된 출력을 내보내는 구조를 가짐.
     return cnn_model
 
 
