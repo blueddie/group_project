@@ -6,9 +6,9 @@ import re
 import numpy as np
 import time
 import matplotlib.pyplot as plt
-# import collections
+import collections
 import random
-# import requests
+import requests
 import json
 import PIL
 import joblib
@@ -188,7 +188,7 @@ image_augmentation = tf.keras.Sequential(
 class TransformerEncoderLayer(tf.keras.layer):          # TransformerEncoderLayer 클래스는 tf.keras.layers.Layer를 상속받아 정의된다. 이를 통해 사용자 정의 층(custom layer)을 만들 수 있다
     
     def __init__(self, embed_dim, num_heads):           # 클래스의 생성자(__init__)에서는 임베딩 차원(embed_dim)과 멀티 헤드 어텐션에서의 헤드 수(num_heads)를 매개변수로 받습니다.
-        super().__init()                                # super().__init__()를 호출하여 부모 클래스(tf.keras.layers.Layer)의 생성자를 초기화합니다.
+        super().__init__()                                # super().__init__()를 호출하여 부모 클래스(tf.keras.layers.Layer)의 생성자를 초기화합니다.
         self.layer_norm_1 = tf.keras.layers.LayerNormalization()    # 두 개의 층 정규화(layer normalization) 층을 정의
         self.layer_norm_2 = tf.keras.layers.LayerNormalization()    # 층 정규화는 입력 데이터의 평균과 분산을 사용하여 정규화를 수행하고, 모델의 학습을 안정화시키는 데 도움을 준다.
         self.attention = tf.keras.layers.MultiHeadAttention(        # 멀티 헤드 어텐션 층을 정의
@@ -399,71 +399,104 @@ class ImageCaptioningModel():
         
         img_embed = self.cnn_model(imgs)        # self.cnn_model을 사용하여 입력 이미지를 임베딩으로 변환, 이미지에서 중요한 특성을 추출하는 데 사용
         
-        loss, acc = self.compute_loss_and_acc(
+        loss, acc = self.compute_loss_and_acc(      #  training=False는 모델이 평가 모드에 있음을 나타냄, 드롭아웃과 같은 훈련 중에만 적용되는 기술들이 비활성화
             img_embed, captions, training=False
         )
 
-        self.loss_tracker.update_state(loss)
+        self.loss_tracker.update_state(loss)        # 현재 배치의 손실과 정확도를 추적. 이는 전체 테스트 데이터셋에 대한 평균 손실과 정확도를 계산하는데 사용
         self.acc_tracker.update_state(acc)
         
         return {"loss": self.loss_tracker.result(), "acc": self.acc_tracker.result()}
     
     @property
-    def metrics(self):
-        return [self.loss_tracker, self.acc_tracker]
+    def metrics(self):          # metrics 프로퍼티는 모델의 평가 중에 사용되는 메트릭을 반환
+        return [self.loss_tracker, self.acc_tracker]        # 훈련이나 테스트 과정에서 모델의 성능을 추적하는데 사용
         
 
+encoder = TransformerEncoderLayer(EMBEDDING_DIM, 1)         # 인코더 층을 생성, 임베딩 벡터의 차원을 지정, 두 번째 인자 1은 인코더 레이어 내의 헤드(head)의 수를 의미
+decoder = TransformerDecoderLayer(EMBEDDING_DIM, UNITS, 8)  # UNITS는 디코더의 내부 유닛(또는 차원) 수
 
 
-
-
-
-encoder = TransformerEncoderLayer(EMBEDDING_DIM, 1)         # 인코더 층을 생성, 임베딩 벡터의 차원을 지정
-decoder = TransformerDecoderLayer(EMBEDDING_DIM, UNITS, 8)
-
-
-cnn_model = CNN_Encoder()
-caption_model = ImageCaptioningModel(
+cnn_model = CNN_Encoder()           #  이미지 캡셔닝 모델을 구성하는 주요 요소들을 초기화하고, 이를 바탕으로 전체 모델을 구축하는 과정
+caption_model = ImageCaptioningModel(   # 각 요소는 이미지로부터 의미 있는 특징을 추출하고, 이를 사용하여 이미지에 대한 설명을 생성하는 데 핵심적인 역할을 수행
     cnn_model = cnn_model, encoder=encoder, decoder=decoder, imag_aug = image_augmentation)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+cross_entropy = tf.keras.losses.SparseCategoricalCrossentropy(  #  함수에 입력되는 y_pred이 로짓(즉 소프트맥스 함수 적용 전의 값) 형태인지, 확률 형태인지를 지정
+    from_logits=False, reduction="none" # 예측값이 이미 확률로 변환된 상태(즉, 모델의 출력층에 소프트맥스 활성화 함수가 적용되었음)
+)   # reduction: 손실 값들을 어떻게 집계할 것인지를 결정. default는 "auto" : 배치 내의 손실을 평균내는 것을 의미
+    # "none"으로 설정하면, 각 샘플에 대한 손실이 개별적으로 계산되어 배치의 각 요소에 대한 손실을 그대로 반환
     
+early_stopping = tf.keras.callbaacks.EarlyStopping(patience=5, restore_best_weights=True, monitor = 'val_acc')
+
+caption_model.compile(
+    optimizer= tf.keras.optimizers.Adam(),
+    loss=cross_entropy
+)
+
+history = caption_model.fit(
+    train_dataset,
+    epochs=EPOCHS,
+    validation_data=val_dataset,
+    callbacks=[early_stopping]
+)
+def load_image_from_path(img_path):
+    img = tf.io.read_file(img_path)         # 주어진 경로의 이미지 파일을 읽고, 그 내용을 바이트 문자열로 반환
+    img = tf.io.decode_jpeg(img, channels=3)    #  읽어들인 바이트 문자열(img)을 디코딩하여 RGB 채널을 가진 이미지 텐서로 변환, RGB
+    img = tf.keras.layers.Resizing(299, 299)(img)   # Inception V3 모델은 299x299 크기의 이미지를 입력으로 받도록 설계되었음
+    img = tf.keras.applications.inception_v3.preprocess_input(img)  #  이미지의 픽셀 값 범위를 조정, Inception V3의 경우, 입력 픽셀 값의 범위를 [-1, 1]로 조정
+    return img              #  예를 들어, 원본 이미지 픽셀 값이 [0, 255] 범위에 있을 경우 이를 모델이 기대하는 입력 범위로 변환 
+
+
+
+def generate_caption(img_path, add_noise=False):    # add_noise=True :이미지에 임의의 잡음을 추가,  잡음이 추가된 후, 이미지는 0에서 1 사이의 값으로 정규화. 하지만 우린 잡음 안넣음
+    img = load_image_from_path(img_path)            # 주어진 경로(img_path)에서 이미지를 로드
+
+    if add_noise:                                   # add_noise가 True일 경우, 이미지에 노이즈를 추가하는 코드 블록
+        noise = tf.random.normal(img.shape)*0.1     #  원본 이미지와 같은 형태의 노이즈를 생성하고, 이를 원본 이미지에 추가
+        img = img + noise                           # , 이미지를 0과 1 사이의 값으로 정규화하여 노이즈 추가 후에도 이미지의 픽셀 값이 유효한 범위 내에 있도록 함
+        img = (img - tf.reduce_min(img))/(tf.reduce_max(img) - tf.reduce_min(img))
+    
+    img = tf.expand_dims(img, axis=0)               # 이미지 텐서에 배치 차원을 추가, axis=0은 배치 차원을 가장 앞에 추가
+    img_embed = caption_model.cnn_model(img)        # 이미지 캡션 모델의 CNN 부분을 사용하여 입력 이미지를 임베딩(특징 벡터)으로 변환, 이 임베딩은 이미지의 중요한 특징을 추출한 벡터로, 캡션 생성에 사용
+    img_encoded = caption_model.encoder(img_embed, training=False)  # 임베딩된 이미지를 인코더에 통과시켜 추가적으로 인코딩
+
+    y_inp = '[start]'                               # 캡션 생성을 시작하기 위한 초기 토큰 [start]를 설정
+    for i in range(MAX_LENGTH-1):                   # 최대 캡션 길이까지 반복하면서 각 시점에서 가장 가능성 있는 단어를 예측, -1은 캡션의 마지막에 [end] 토큰을 추가하기 위한 공간을 남겨둠
+        tokenized = tokenizer([y_inp])[:, :-1]      # 현재까지의 캡션(y_inp)을 토큰화하고, 마지막 토큰을 제외한 모든 토큰을 사용하여 다음 단어의 예측에 사용, 이는 다음 단어를 예측하기 위한 입력으로 사용
+        mask = tf.cast(tokenized != 0, tf.int32)    # 토큰화된 입력에 대한 마스크를 생성, 실제 단어가 있는 위치는 True로, 패딩 부분은 False로 표시 즉, 패딩된 부분 무시
+        pred = caption_model.decoder(               # 디코더를 사용하여 다음 단어를 예측 
+            tokenized, img_encoded, training=False, mask=mask)  # img_encoded는 이미지의 인코딩된 특징이며, mask는 앞서 생성한 마스크
+        
+        pred_idx = np.argmax(pred[0, i, :])             # 가장 높은 확률을 가진 단어의 인덱스를 선택
+        pred_idx = tf.convert_to_tensor(pred_idx)       # 선택된 인덱스를 텐서로 변환
+        pred_word = idx2word(pred_idx).numpy().decode('utf-8')  # 인덱스를 단어로 변환, numpy().decode('utf-8')는 텐서를 문자열로 변환
+        if pred_word == '[end]':                        # 만약 예측된 단어가 [end] 토큰이면, 캡션 생성을 종료
+            break
+        
+        y_inp += ' ' + pred_word                        # 예측된 단어를 현재까지의 캡션에 추가
+    
+    y_inp = y_inp.replace('[start] ', '')               # 최종 생성된 캡션에서 시작 토큰을 제거
+    return y_inp
 
 
 
 
+idx = random.randrange(0, len(captions))    # 0부터 captions 데이터프레임의 길이(행의 개수) 사이에서 무작위로 하나의 정수 인덱스를 생성
+img_path = captions.iloc[idx].image         # 데이터프레임에서 무작위로 선택된 이미지의 경로를 img_path에 할당하는 과정
 
 
+pred_caption = generate_caption(img_path)
+print('Predicted Caption:', pred_caption)
+print()
+Image.open(img_path)
 
+img_url = "https://images.squarespace-cdn.com/content/v1/5e0e65adcd39ed279a0402fd/1627422658456-7QKPXTNQ34W2OMBTESCJ/1.jpg?format=2500w"
 
+im = Image.open(requests.get(img_url, stream=True).raw)     #  웹에서 이미지를 스트리밍 방식으로 다운로드
+im = im.convert('RGB')
+im.save('tmp.jpg')
 
-
-
-
+pred_caption = generate_caption('tmp.jpg', add_noise=False)
+print('Predicted Caption:', pred_caption)
+print()
+im.show()
