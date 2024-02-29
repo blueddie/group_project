@@ -128,7 +128,6 @@ random.shuffle(img_keys)        # img_keys 리스트의 순서를 무작위로 �
 print(captions['caption'].shape)
 
 
-
 slice_index = int(len(img_keys)*0.8)        # img_keys 리스트 길이의 80퍼에 해당하는 위치를 계산 즉, 훈련세트와 검증세트를 나누는 기준점 
 img_name_train_keys, img_name_val_keys = (img_keys[:slice_index], img_keys[slice_index:])    # img_keys 리스트를 두 부분으로 나눔
 # 분할된 두 리스트는 각각 img_name_train_keys와 img_name_val_keys 변수에 할당
