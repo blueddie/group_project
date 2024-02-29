@@ -1,6 +1,6 @@
 1. CNN Encoder:
 InceptionV3 - 이미지 특성 추출을 위한 사전 훈련된 CNN 모델
               symmetric(대칭) and asymmetric(비대칭) building blocks including convolutions, average pooling, max pooling, concatenations, dropouts, and fully connected layers
-               
+
 2. Transformer Encoder :
-attention : 
+서 Transformer Encoder는 InceptionV3에서 추출한 이미지 특징을 입력으로 받아들이고, 이를 Transformer Decoder로 전달하여 캡션을 생성하는 과정에 활용
