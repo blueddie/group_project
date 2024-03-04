@@ -447,9 +447,3 @@ print('Predicted Caption:', pred_caption)
 print()
 im.show()
 
-# 가중치 저장
-caption_model.save_weights('c:/Study/project/group_project/min/save/caption_model.h5')
-# pickle.dump(caption_model, open('c:/Study/project/group_project/min/caption_model.dat', 'wb'))
-# pickle.dump(caption_model, open('c:/Study/project/group_project/min/caption_model.pkl', 'wb'))
-
-# dump(caption_model, 'c:/Study/project/group_project/min/save/caption_model.joblib')

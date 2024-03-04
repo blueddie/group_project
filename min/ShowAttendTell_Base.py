@@ -47,6 +47,6 @@ class ShowAttendTell(tf.keras.Model):
         return output
 
 # 모델 및 손실 함수, 옵티마이저 설정
-ShowAttendTell(model)
+# ShowAttendTell(model)
 # 모델 학습
 # 이 부분은 실제 학습 과정에 따라서 구현해야 합니다.

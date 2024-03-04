@@ -17,7 +17,6 @@ from math import sqrt
 from PIL import Image
 from tqdm.auto import tqdm
 import pickle
-from tf.keras.models import load_model
 
 # 기본 파일 위치
 BASE_PATH = 'd:/_data/coco/archive/coco2017'
@@ -44,6 +43,8 @@ captions['image'] = captions['image'].apply(
     lambda x: f'{BASE_PATH}/train2017/{x}'                                  
     # lambda x: f'{x}'                                  
 )
+captions = captions.sample(123287)
+captions = captions.reset_index(drop=True)
 
 def preprocess(text):
     text = text.lower()
@@ -68,7 +69,7 @@ BATCH_SIZE = 64
 BUFFER_SIZE = 1000
 EMBEDDING_DIM = 512
 UNITS = 512
-EPOCHS = 30
+EPOCHS = 1
 
 tokenizer = tf.keras.layers.TextVectorization(
     max_tokens=VOCABULARY_SIZE,
@@ -345,7 +346,6 @@ class ImageCaptioningModel(tf.keras.Model):
         self.acc_tracker.update_state(acc)
 
         return {"loss": self.loss_tracker.result(), "acc": self.acc_tracker.result()}
-    
 
     def test_step(self, batch):
         imgs, captions = batch
@@ -372,7 +372,7 @@ cnn_model = CNN_Encoder()
 caption_model = ImageCaptioningModel(
     cnn_model=cnn_model, encoder=encoder, decoder=decoder, image_aug=image_augmentation,
 )
-caption_model.tf.keras.load_weights('c:/Study/project/group_project/min/save/caption_model_2.h5)
+
 cross_entropy = tf.keras.losses.SparseCategoricalCrossentropy(
     from_logits=False, reduction="none"
 )
@@ -384,17 +384,17 @@ caption_model.compile(
     loss=cross_entropy
 )
 
-history = caption_model.fit(
-    train_dataset,
-    epochs=EPOCHS,
-    validation_data=val_dataset,
-    callbacks=[early_stopping]
-)
+# history = caption_model.fit(
+#     train_dataset,
+#     epochs=EPOCHS,
+#     validation_data=val_dataset,
+#     callbacks=[early_stopping]
+# )
 
-plt.plot(history.history['loss'], label='train_loss')
-plt.plot(history.history['val_loss'], label='validation loss')
-plt.legend()
-plt.show()
+# plt.plot(history.history['loss'], label='train_loss')
+# plt.plot(history.history['val_loss'], label='validation loss')
+# plt.legend()
+# plt.show()
 
 def load_image_from_path(img_path):
     img = tf.io.read_file(img_path)
@@ -454,8 +454,22 @@ print()
 im.show()
 
 # 가중치 저장
-caption_model.save_weights('c:/Study/project/group_project/min/save/caption_model.h5')
-# pickle.dump(caption_model, open('c:/Study/project/group_project/min/caption_model.dat', 'wb'))
-# pickle.dump(caption_model, open('c:/Study/project/group_project/min/caption_model.pkl', 'wb'))
+# caption_model.save_weights('c:/Study/project/group_project/min/save/caption_model.h5')
 
-# dump(caption_model, 'c:/Study/project/group_project/min/save/caption_model.joblib')
+#####
+from tensorflow import keras
+# model = tf.keras.models.load_model('c:/Study/project/group_project/min/save/caption_model_2.h5')
+model = keras.models.load_model('c:/Study/project/group_project/min/save/caption_model.hdf5')
+
+model.compile(loss = 'sparse_categorical_crossentropy', optimizer = 'adam', metircs = ['acc'])
+
+history_2 = model.fit(
+    train_dataset,
+    epochs = EPOCHS,
+    validation_data = val_dataset,
+    callbacks=[early_stopping]
+)
+
+model.save('c:/Study/project/group_project/min/save/model.hdf5')
+
+
