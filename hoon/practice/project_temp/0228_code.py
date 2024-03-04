@@ -19,4 +19,7 @@ from PIL import Image
 import pickle
 
 
-class TransformerEncoderLayer(tf.keras.layer)
+class TransformerEncoderLayer(tf.keras.layer):
+    
+    def __init__(self, ebed_dim, num_heads):
+        super().__init__()
