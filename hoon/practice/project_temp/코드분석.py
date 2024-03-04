@@ -44,10 +44,14 @@ captions['image'] = captions['image'].apply(                                # 'i
     lambda x: f'{BASE_PATH}/train2017/{x}'                                  # 이미지 파일의 경로를 수정하여 열에 적용합니다.
     # lambda x: f'{x}'                                  
 )
-print(captions.shape)                                                       # (616767, 2) 정상적으로 데이터프레임 만들었음 확인.
 et = time.time()
 print(f"걸린 시간 {et - st}")
 
+print(captions.shape)
+# captions = captions.sample(10000)
+# print(f"추출한 임의의 샘플 : {captions.shape}")      
+# # (616767, 2) 정상적으로 데이터프레임 만들었음 확인.
+'''
 def preprocess(text):
     text = text.lower()                                                     # 텍스트를 소문자로 변환합니다.
     text = re.sub(r'[^\w\s]', '', text)                                     # 특수 문자를 제거합니다.
@@ -68,7 +72,7 @@ captions['caption'] = captions['caption'].apply(preprocess)                 # ca
 
 MAX_LENGTH = 40
 VOCABULARY_SIZE = 29630
-BATCH_SIZE = 64
+BATCH_SIZE = 88
 BUFFER_SIZE = 1000
 EMBEDDING_DIM = 512
 UNITS = 512
@@ -84,6 +88,7 @@ tokenizer.adapt(captions['caption'])
 # print(captions['caption'])
 
 print(tokenizer.vocabulary_size())                                          # 나누지 않은 train 전체    29630
+# print(f"추출한 임의의 샘플 단어 사전 : {tokenizer.vocabulary_size()}")                                          # 나누지 않은 train 전체    29630
 
 
 # pickle.dump(tokenizer.get_vocabulary(), open(                             # 집합(vocabulary)을 파일로 저장
@@ -198,7 +203,7 @@ class TransformerEncoderLayer(tf.keras.layers.Layer):                       # �
             training=training                                               # 훈련 중인지 아닌지를 나타내는 불리언 값입니다. 이것은 모델이 훈련 중인지 추론 중인지에 따라 다르게 작동하는 레이어(예: 드롭아웃)가 있을 때 사용
         )
 
-        x = self.layer_norm_2(x + attn_output)                              # 
+        x = self.layer_norm_2(x + attn_output)                              # 두 번째 층 정규화를 수행하고, 이전 층의 출력과 어텐션 출력을 더합니다. 이렇게 함으로써, 어텐션에서 얻은 정보를 입력에 누적하고 새로운 특성을 만들어냅니다.
         return x
 
 
@@ -206,57 +211,62 @@ class Embeddings(tf.keras.layers.Layer):
 
     def __init__(self, vocab_size, embed_dim, max_len):
         super().__init__()
-        self.token_embeddings = tf.keras.layers.Embedding(
+        self.token_embeddings = tf.keras.layers.Embedding(                  # 토큰 임베딩 레이어 초기화: vocab_size는 어휘 사전의 크기, embed_dim은 임베딩 차원의 크기
             vocab_size, embed_dim)
-        self.position_embeddings = tf.keras.layers.Embedding(
+        self.position_embeddings = tf.keras.layers.Embedding(               # 위치 임베딩 레이어 초기화: max_len은 입력 시퀀스의 최대 길이
             max_len, embed_dim, input_shape=(None, max_len))
     
 
     def call(self, input_ids):
-        length = tf.shape(input_ids)[-1]
-        position_ids = tf.range(start=0, limit=length, delta=1)
-        position_ids = tf.expand_dims(position_ids, axis=0)
+        length = tf.shape(input_ids)[-1]                                    # 입력 시퀀스의 길이 계산
+        position_ids = tf.range(start=0, limit=length, delta=1)             # 입력 시퀀스의 각 토큰 위치에 대한 정보 계산 (입력 시퀀스의 각 토큰 위치에 대한 정보를 생성하기 위해 0부터 시작하여 length-1까지의 숫자를 생성)
+        position_ids = tf.expand_dims(position_ids, axis=0)                 # position_ids 텐서의 차원을 확장하여 batch 차원을 추가함 position_ids는 입력 토큰의 위치 정보를 나타내는 텐서
+                                                                            # 텐서플로우의 멀티-배치(batch) 모델에서는 모든 입력이 배치(batch)의 형태를 갖습니다. 
+                                                                            # 즉, 입력 데이터의 첫 번째 차원은 배치 차원입니다. 따라서 입력 토큰의 위치 정보를 나타내는 텐서인 position_ids를 확장하여 배치 차원을 추가해야 합니다.
+        
+        
 
-        token_embeddings = self.token_embeddings(input_ids)
-        position_embeddings = self.position_embeddings(position_ids)
+        token_embeddings = self.token_embeddings(input_ids)                 # 토큰 임베딩 계산
+        position_embeddings = self.position_embeddings(position_ids)        # 위치 임베딩 계산
 
-        return token_embeddings + position_embeddings
+        return token_embeddings + position_embeddings                       # 토큰 임베딩과 위치 임베딩을 더하여 최종 임베딩 생성
 
 class TransformerDecoderLayer(tf.keras.layers.Layer):
 
-    def __init__(self, embed_dim, units, num_heads):
+    def __init__(self, embed_dim, units, num_heads):                        # 클래스의 생성자 메서드로, 필요한 하이퍼파라미터를 인자로 받아 초기화합니다.
         super().__init__()
-        self.embedding = Embeddings(
+        self.embedding = Embeddings(                                        # 임베딩 층을 정의하고 초기화합니다. 입력 어휘 사이즈, 임베딩 차원, 최대 길이를 인자로 받습니다.
             tokenizer.vocabulary_size(), embed_dim, MAX_LENGTH)
 
-        self.attention_1 = tf.keras.layers.MultiHeadAttention(
+        self.attention_1 = tf.keras.layers.MultiHeadAttention(              # 첫 번째 멀티 헤드 어텐션 층을 정의하고 초기화합니다.
             num_heads=num_heads, key_dim=embed_dim, dropout=0.1
         )
-        self.attention_2 = tf.keras.layers.MultiHeadAttention(
+        self.attention_2 = tf.keras.layers.MultiHeadAttention(              # 두 번째 멀티 헤드 어텐션 층을 정의하고 초기화합니다.
             num_heads=num_heads, key_dim=embed_dim, dropout=0.1
         )
 
-        self.layernorm_1 = tf.keras.layers.LayerNormalization()
+        self.layernorm_1 = tf.keras.layers.LayerNormalization()             # 
         self.layernorm_2 = tf.keras.layers.LayerNormalization()
         self.layernorm_3 = tf.keras.layers.LayerNormalization()
 
-        self.ffn_layer_1 = tf.keras.layers.Dense(units, activation="relu")
-        self.ffn_layer_2 = tf.keras.layers.Dense(embed_dim)
+        self.ffn_layer_1 = tf.keras.layers.Dense(units, activation="relu")  # 첫 번째 피드포워드 신경망 층을 정의하고 초기화합니다.
+        self.ffn_layer_2 = tf.keras.layers.Dense(embed_dim)                 # 두 번째 피드포워드 신경망 층을 정의하고 초기화합니다.
 
-        self.out = tf.keras.layers.Dense(tokenizer.vocabulary_size(), activation="softmax")
+        self.out = tf.keras.layers.Dense(tokenizer.vocabulary_size()        # 출력 층을 정의하고 초기화합니다.
+                                         , activation="softmax") 
 
-        self.dropout_1 = tf.keras.layers.Dropout(0.3)
+        self.dropout_1 = tf.keras.layers.Dropout(0.3)                       # 첫 번째 드롭아웃 층을 정의하고 초기화합니다.
         self.dropout_2 = tf.keras.layers.Dropout(0.5)
     
 
-    def call(self, input_ids, encoder_output, training, mask=None):
-        embeddings = self.embedding(input_ids)
+    def call(self, input_ids, encoder_output, training, mask=None):         # 디코더의 한 층에 대한 계산을 수행하는 메서드입니다. 입력 데이터, 인코더의 출력, 학습 여부, 마스크를 인자로 받습니다.
+        embeddings = self.embedding(input_ids)                              # 
 
-        combined_mask = None
-        padding_mask = None
+        combined_mask = None                                                # 병합된 마스크를 초기화합니다. 조건에 따라 값이 변경됩니다.
+        padding_mask = None                                                 # 패딩 마스크를 초기화합니다. 조건에 따라 값이 변경됩니다.
         
         if mask is not None:
-            causal_mask = self.get_causal_attention_mask(embeddings)
+            causal_mask = self.get_causal_attention_mask(embeddings)        # 
             padding_mask = tf.cast(mask[:, :, tf.newaxis], dtype=tf.int32)
             combined_mask = tf.cast(mask[:, tf.newaxis, :], dtype=tf.int32)
             combined_mask = tf.minimum(combined_mask, causal_mask)
@@ -386,7 +396,7 @@ class ImageCaptioningModel(tf.keras.Model):
     def metrics(self):
         return [self.loss_tracker, self.acc_tracker]
 
-encoder = TransformerEncoderLayer(EMBEDDING_DIM, 1)
+encoder = TransformerEncoderLayer(EMBEDDING_DIM, 8)
 decoder = TransformerDecoderLayer(EMBEDDING_DIM, UNITS, 8)
 
 cnn_model = CNN_Encoder()
@@ -450,30 +460,20 @@ def generate_caption(img_path, add_noise=False):
         if pred_word == '[end]':
             break
         
-        y_inp += ' ' + pred_word
+        y_inp += ' ' + pred_word 
     
     y_inp = y_inp.replace('[start] ', '')
     return y_inp
 
-idx = random.randrange(0, len(captions))
-img_path = captions.iloc[idx].image
+img_path = 'D:\\_data\\coco\\archive\\test\\7.jpg'
+im = Image.open(img_path)
+im.show()
 
-pred_caption = generate_caption(img_path)
+pred_caption = generate_caption(img_path, add_noise=False)
 print('Predicted Caption:', pred_caption)
-print()
-Image.open(img_path)
 
-# img_url = "https://images.squarespace-cdn.com/content/v1/5e0e65adcd39ed279a0402fd/1627422658456-7QKPXTNQ34W2OMBTESCJ/1.jpg?format=2500w"
+from gtts import gTTS
 
-# im = Image.open(requests.get(img_url, stream=True).raw)
-# im = im.convert('RGB')
-# im.save('tmp.jpg')
 
-pred_caption = generate_caption('D:/_data/coco/archive/test/test.jpg', add_noise=False)
-print('Predicted Caption:', pred_caption)
-print()
-# im.show()
 
-# 가중치 저장
-caption_model.save_weights('D:\\_data\\coco\\archive\\imageCaptioning_coco.h5')
-
+'''
