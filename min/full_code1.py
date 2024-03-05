@@ -43,7 +43,7 @@ captions['image'] = captions['image'].apply(
     lambda x: f'{BASE_PATH}/train2017/{x}'                                  
     # lambda x: f'{x}'                                  
 )
-captions = captions.sample(123287)
+captions = captions.sample(200000) # 123287
 captions = captions.reset_index(drop=True)
 
 def preprocess(text):
@@ -69,7 +69,7 @@ BATCH_SIZE = 64
 BUFFER_SIZE = 1000
 EMBEDDING_DIM = 512
 UNITS = 512
-EPOCHS = 20
+EPOCHS = 5
 
 tokenizer = tf.keras.layers.TextVectorization(
     max_tokens=VOCABULARY_SIZE,
@@ -377,7 +377,7 @@ cross_entropy = tf.keras.losses.SparseCategoricalCrossentropy(
     from_logits=False, reduction="none"
 )
 
-early_stopping = tf.keras.callbacks.EarlyStopping(patience=5, restore_best_weights=True, monitor = 'val_acc')
+early_stopping = tf.keras.callbacks.EarlyStopping(patience=1, restore_best_weights=True, monitor = 'val_acc')
 
 caption_model.compile(
     optimizer=tf.keras.optimizers.Adam(),
@@ -437,20 +437,79 @@ def generate_caption(img_path, add_noise=False):
 idx = random.randrange(0, len(captions))
 img_path = captions.iloc[idx].image
 
+print()
+print()
+print()
+print()
+print()
+
 pred_caption = generate_caption(img_path)
 print('Predicted Caption:', pred_caption)
 print()
-Image.open(img_path)
-
-img_url = "https://images.squarespace-cdn.com/content/v1/5e0e65adcd39ed279a0402fd/1627422658456-7QKPXTNQ34W2OMBTESCJ/1.jpg?format=2500w"
-# img_url = "d:/_data/coco/archive/coco2017/test2017/000000326379.jpg"
-
-im = Image.open(requests.get(img_url, stream=True).raw)
-im = im.convert('RGB')
-im.save('tmp.jpg')
-
-pred_caption = generate_caption('tmp.jpg', add_noise=False)
-print('Predicted Caption:', pred_caption)
-print()
+im = Image.open(img_path)
 im.show()
 
+from gtts import gTTS
+import pygame
+import time
+
+text = pred_caption
+tts = gTTS(text=text, lang='en')
+tts.save("C:/Users/AIA/Desktop/temp/random.mp3")
+
+# pygame 초기화
+pygame.init()
+
+# mp3 파일 로드
+pygame.mixer.music.load("C:/Users/AIA/Desktop/temp/random.mp3")
+
+# mp3 파일 재생
+pygame.mixer.music.play()
+
+# 2초 대기
+time.sleep(2)
+
+# pygame 종료
+pygame.quit()
+
+img_path = "d:/_data/coco/archive/coco2017/test2017/000000136488.jpg"
+pred_caption = generate_caption(img_path, add_noise=False)
+print('Predicted Caption:', pred_caption)
+print()
+im = Image.open(img_path)
+im.show()
+
+text = pred_caption
+tts = gTTS(text=text, lang='en')
+tts.save("C:/Users/AIA/Desktop/temp/000000136488.mp3")
+
+# pygame 초기화
+pygame.init()
+
+# mp3 파일 로드
+pygame.mixer.music.load("C:/Users/AIA/Desktop/temp/000000136488.mp3")
+
+# mp3 파일 재생
+pygame.mixer.music.play()
+
+# 3초 대기
+time.sleep(3)
+
+# pygame 종료
+pygame.quit()
+
+
+
+
+
+
+# img_url = "https://images.squarespace-cdn.com/content/v1/5e0e65adcd39ed279a0402fd/1627422658456-7QKPXTNQ34W2OMBTESCJ/1.jpg?format=2500w"
+
+# im = Image.open(requests.get(img_url, stream=True).raw)
+# im = im.convert('RGB')
+# im.save('tmp.jpg')
+
+# pred_caption = generate_caption('tmp.jpg', add_noise=False)
+# print('Predicted Caption:', pred_caption)
+# print()
+# im.show()

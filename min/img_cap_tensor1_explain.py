@@ -268,7 +268,7 @@ class TransformerDecoderLayer(tf.keras.layers.Layer):
         return preds
 
 
-    def get_causal_attention_mask(self, inputs):    # 원긴과 결과가 명확한 어텐션 마스크 생성.
+    def get_causal_attention_mask(self, inputs):    # 원인과 결과가 명확한 어텐션 마스크 생성.
         input_shape = tf.shape(inputs)      # 인풋의 shape
         batch_size, sequence_length = input_shape[0], input_shape[1]    # 배치 크기와 시퀀스 길이 추출
         i = tf.range(sequence_length)[:, tf.newaxis]    # 0부터 시퀀스 길이 까지의 인덱스를 생성. 새로운 축을 추가해 위치 저장
@@ -382,19 +382,19 @@ caption_model.compile(  # model.compile
     loss=cross_entropy  # 코드 374번줄
 )
 
-history = caption_model.fit(
+history = caption_model.fit(    
     train_dataset,
     epochs=EPOCHS,
     validation_data=val_dataset,
     callbacks=[early_stopping]
 )
-
+# loss, val_loss 시각화
 plt.plot(history.history['loss'], label='train_loss')
 plt.plot(history.history['val_loss'], label='validation loss')
 plt.legend()
 plt.show()
 # 이 아래는 predict를 위한 함수 설정
-def load_image_from_path(img_path):
+def load_image_from_path(img_path):     # 저장공간에서 이미지 불러오기 + 전처리
     img = tf.io.read_file(img_path)
     img = tf.io.decode_jpeg(img, channels=3)
     img = tf.keras.layers.Resizing(299, 299)(img)
@@ -402,19 +402,19 @@ def load_image_from_path(img_path):
     return img
 
 
-def generate_caption(img_path, add_noise=False):
-    img = load_image_from_path(img_path)
+def generate_caption(img_path, add_noise=False):    # 이미지 캡션 생성
+    img = load_image_from_path(img_path)    # 코드 397번줄
     
-    if add_noise:
-        noise = tf.random.normal(img.shape)*0.1
-        img = img + noise
+    if add_noise:   # add_noise=True 일때 실행
+        noise = tf.random.normal(img.shape)*0.1 # 노이즈 정도 설정
+        img = img + noise                       # 기존 이미지에 노이즈 추가
         img = (img - tf.reduce_min(img))/(tf.reduce_max(img) - tf.reduce_min(img))
     
-    img = tf.expand_dims(img, axis=0)
-    img_embed = caption_model.cnn_model(img)
-    img_encoded = caption_model.encoder(img_embed, training=False)
+    img = tf.expand_dims(img, axis=0)   
+    img_embed = caption_model.cnn_model(img)    # img를 cnn모델 통과시키고 img_embed에 저장
+    img_encoded = caption_model.encoder(img_embed, training=False)  # img_embed를 인코더에 통과시키고 img_encoded에 저장
 
-    y_inp = '[start]'
+    y_inp = '[start]'   
     for i in range(MAX_LENGTH-1):
         tokenized = tokenizer([y_inp])[:, :-1]
         mask = tf.cast(tokenized != 0, tf.int32)
@@ -450,10 +450,3 @@ pred_caption = generate_caption('tmp.jpg', add_noise=False)
 print('Predicted Caption:', pred_caption)
 print()
 im.show()
-
-# 가중치 저장
-caption_model.save_weights('c:/Study/project/group_project/min/save/caption_model.h5')
-# pickle.dump(caption_model, open('c:/Study/project/group_project/min/caption_model.dat', 'wb'))    # error
-# pickle.dump(caption_model, open('c:/Study/project/group_project/min/caption_model.pkl', 'wb'))
-
-# dump(caption_model, 'c:/Study/project/group_project/min/save/caption_model.joblib')
